@@ -38,6 +38,24 @@ const WEAPONS = {
   shotgun: { name: 'Shotgun', damage: 15, fireRate: 800, ammo: 12, spread: 0.08, recoil: 0.06 },
   smg: { name: 'SMG', damage: 15, fireRate: 100, ammo: 60, spread: 0.04, recoil: 0.02 },
   rifle: { name: 'Rifle', damage: 40, fireRate: 600, ammo: 20, spread: 0.01, recoil: 0.05 },
+  katana: { name: 'Katana', damage: 999, fireRate: 600, ammo: 999, spread: 0.01, recoil: 0.08 },
+};
+
+const SHOP_ITEMS = {
+  armor_light: { name: 'Colete Leve', price: 500, category: 'consumivel', effect: (p) => { p.armor = Math.min(100, p.armor + 25); } },
+  armor_heavy: { name: 'Colete Pesada', price: 1000, category: 'consumivel', effect: (p) => { p.armor = Math.min(100, p.armor + 50); } },
+  ammo_refill: { name: 'Municao Extra', price: 300, category: 'consumivel', effect: (p) => { p.ammo = WEAPONS[p.weapon].ammo; } },
+  health_pack: { name: 'Kit Medico', price: 400, category: 'consumivel', effect: (p) => { p.health = Math.min(100, p.health + 40); } },
+  skin_red: { name: 'Skin Vermelho', price: 200, category: 'skin', effect: (p) => { p.color = '#ff3333'; } },
+  skin_blue: { name: 'Skin Azul', price: 200, category: 'skin', effect: (p) => { p.color = '#3366ff'; } },
+  skin_gold: { name: 'Skin Dourado', price: 800, category: 'skin', effect: (p) => { p.color = '#ffd700'; } },
+  skin_neon: { name: 'Skin Neon', price: 600, category: 'skin', effect: (p) => { p.color = '#00ff88'; } },
+  skin_purple: { name: 'Skin Roxo', price: 400, category: 'skin', effect: (p) => { p.color = '#9933ff'; } },
+  skin_camo: { name: 'Skin Camuflagem', price: 500, category: 'skin', effect: (p) => { p.color = '#556b2f'; } },
+  weapon_shotgun: { name: 'Shotgun', price: 1000, category: 'arma', effect: (p) => { p.weapon = 'shotgun'; p.ammo = WEAPONS.shotgun.ammo; } },
+  weapon_smg: { name: 'SMG', price: 1500, category: 'arma', effect: (p) => { p.weapon = 'smg'; p.ammo = WEAPONS.smg.ammo; } },
+  weapon_rifle: { name: 'Rifle', price: 2500, category: 'arma', effect: (p) => { p.weapon = 'rifle'; p.ammo = WEAPONS.rifle.ammo; } },
+  weapon_katana: { name: 'Katana (Hitkill)', price: 1000000, category: 'arma', effect: (p) => { p.weapon = 'katana'; p.ammo = 999; } },
 };
 
 const VEHICLE_MODELS = [
@@ -47,21 +65,38 @@ const VEHICLE_MODELS = [
   { name: 'Truck', maxSpeed: 28, acceleration: 10, color: 0x33aa33, handling: 0.82 },
   { name: 'Muscle', maxSpeed: 50, acceleration: 22, color: 0xff6600, handling: 0.90 },
   { name: 'Coupe', maxSpeed: 52, acceleration: 20, color: 0x9933cc, handling: 0.93 },
+  { name: 'Pickup', maxSpeed: 35, acceleration: 12, color: 0x8B4513, handling: 0.85 },
+  { name: 'Van', maxSpeed: 32, acceleration: 11, color: 0x556677, handling: 0.80 },
+];
+
+const HOUSE_TEMPLATES = [
+  { name: 'Predio', w: 12, h: 12, d: 12, color: 0x8899aa, roofColor: 0x444444 },
+  { name: 'Escritorio', w: 14, h: 8, d: 10, color: 0x99aabb, roofColor: 0x333333 },
+  { name: 'Casa', w: 7, h: 3.5, d: 7, color: 0xcc9966, roofColor: 0x8B4513 },
+  { name: 'Galpao', w: 16, h: 7, d: 20, color: 0x666666, roofColor: 0x444444 },
+  { name: 'Container', w: 4, h: 3, d: 8, color: 0x2266aa, roofColor: 0x2266aa },
+  { name: 'Sobrado', w: 10, h: 7, d: 10, color: 0xddbb88, roofColor: 0x993333 },
+  { name: 'Bar', w: 8, h: 4, d: 8, color: 0x884422, roofColor: 0x228822 },
+  { name: 'Barraca', w: 5, h: 3, d: 5, color: 0xCC6633, roofColor: 0xCC6633 },
 ];
 
 function spawnVehicles() {
   gtaVehicles.length = 0;
   const spots = [
-    { x: 5, z: -25, r: 0 }, { x: -5, z: -25, r: Math.PI },
-    { x: 25, z: 5, r: Math.PI / 2 }, { x: 25, z: -5, r: Math.PI / 2 },
-    { x: -25, z: 5, r: -Math.PI / 2 }, { x: -25, z: -5, r: -Math.PI / 2 },
-    { x: 5, z: 25, r: 0 }, { x: -5, z: 25, r: Math.PI },
-    { x: 60, z: 5, r: 0 }, { x: 60, z: -5, r: Math.PI },
-    { x: -60, z: 5, r: 0 }, { x: -60, z: -5, r: Math.PI },
-    { x: 5, z: 60, r: Math.PI / 2 }, { x: -5, z: 60, r: Math.PI / 2 },
-    { x: 5, z: -60, r: Math.PI / 2 }, { x: -5, z: -60, r: Math.PI / 2 },
-    { x: 40, z: 40, r: 0.5 }, { x: -40, z: 40, r: -0.5 },
-    { x: 40, z: -40, r: 2.5 }, { x: -40, z: -40, r: 3.5 },
+    { x: 0, z: -28, r: 0 }, { x: 8, z: -28, r: 0 },
+    { x: -28, z: 0, r: Math.PI/2 }, { x: -28, z: -8, r: Math.PI/2 },
+    { x: 28, z: 0, r: -Math.PI/2 }, { x: 28, z: 8, r: -Math.PI/2 },
+    { x: 0, z: 28, r: Math.PI }, { x: -8, z: 28, r: Math.PI },
+    { x: -55, z: -55, r: 0.3 }, { x: -45, z: -55, r: Math.PI+0.3 },
+    { x: -55, z: -45, r: Math.PI/2 }, { x: -45, z: -45, r: -Math.PI/2 },
+    { x: 60, z: -60, r: 0.5 }, { x: 70, z: -50, r: Math.PI },
+    { x: 60, z: -50, r: Math.PI/2 }, { x: 75, z: -60, r: 0 },
+    { x: -60, z: 60, r: 0 }, { x: -50, z: 60, r: Math.PI },
+    { x: -60, z: 70, r: Math.PI/2 }, { x: -50, z: 70, r: -Math.PI/2 },
+    { x: 60, z: 60, r: 1.0 }, { x: 50, z: 60, r: Math.PI },
+    { x: 60, z: 50, r: -Math.PI/2 }, { x: 50, z: 50, r: Math.PI/2 },
+    { x: -10, z: -50, r: 0 }, { x: 10, z: 50, r: Math.PI },
+    { x: -50, z: 10, r: Math.PI/2 }, { x: 50, z: -10, r: -Math.PI/2 },
   ];
   for (let i = 0; i < spots.length; i++) {
     const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
@@ -76,66 +111,57 @@ function spawnVehicles() {
 }
 
 const SPAWN_POINTS = [
-  { x: 0, z: 0 }, { x: 10, z: 5 }, { x: -10, z: 5 },
-  { x: 5, z: 10 }, { x: -5, z: 10 },
+  { x: 0, z: 0 }, { x: -10, z: 0 }, { x: 10, z: 0 },
+  { x: 0, z: -10 }, { x: 0, z: 10 },
 ];
 
 function spawnHouses() {
   gtaHouses.length = 0;
   let id = 0;
+
   const placements = [
-    { x: 15, z: 15, t: 0, door: 0 },
-    { x: 35, z: 15, t: 1, door: 3 },
-    { x: 55, z: 15, t: 0, door: 0 },
-    { x: 15, z: 35, t: 2, door: 1 },
-    { x: 35, z: 35, t: 0, door: 0 },
-    { x: 55, z: 35, t: 3, door: 2 },
-    { x: 15, z: 55, t: 0, door: 3 },
-    { x: 35, z: 55, t: 2, door: 1 },
+    // ===== CENTRO URBANO (NW: -80 a -40, -80 a -40) =====
+    { x: -60, z: -60, t: 0, door: 3 },
+    { x: -48, z: -60, t: 0, door: 0 },
+    { x: -60, z: -48, t: 1, door: 1 },
+    { x: -48, z: -48, t: 0, door: 2 },
+    { x: -72, z: -60, t: 1, door: 3 },
+    { x: -72, z: -48, t: 0, door: 0 },
+    { x: -60, z: -72, t: 0, door: 1 },
+    { x: -48, z: -72, t: 1, door: 2 },
 
-    { x: -15, z: 15, t: 0, door: 0 },
-    { x: -35, z: 15, t: 2, door: 3 },
-    { x: -55, z: 15, t: 0, door: 1 },
-    { x: -15, z: 35, t: 1, door: 0 },
-    { x: -35, z: 35, t: 0, door: 2 },
-    { x: -55, z: 35, t: 3, door: 1 },
-    { x: -15, z: 55, t: 0, door: 0 },
-    { x: -35, z: 55, t: 2, door: 3 },
+    // ===== INDUSTRIAL (NE: 40 a 85, -85 a -40) =====
+    { x: 55, z: -60, t: 3, door: 0 },
+    { x: 75, z: -60, t: 3, door: 3 },
+    { x: 65, z: -75, t: 3, door: 1 },
+    { x: 55, z: -75, t: 4, door: 0 },
+    { x: 75, z: -75, t: 4, door: 2 },
+    { x: 55, z: -50, t: 4, door: 3 },
+    { x: 75, z: -50, t: 4, door: 0 },
 
-    { x: 15, z: -15, t: 0, door: 2 },
-    { x: 35, z: -15, t: 1, door: 3 },
-    { x: 55, z: -15, t: 0, door: 2 },
-    { x: 15, z: -35, t: 2, door: 0 },
-    { x: 35, z: -35, t: 0, door: 2 },
-    { x: 55, z: -35, t: 3, door: 0 },
-    { x: 15, z: -55, t: 0, door: 3 },
-    { x: 35, z: -55, t: 2, door: 1 },
+    // ===== FAVELA (SW: -85 a -40, 40 a 85) =====
+    { x: -65, z: 50, t: 2, door: 0 },
+    { x: -55, z: 50, t: 2, door: 3 },
+    { x: -45, z: 50, t: 7, door: 0 },
+    { x: -65, z: 60, t: 2, door: 1 },
+    { x: -55, z: 60, t: 7, door: 2 },
+    { x: -45, z: 60, t: 2, door: 0 },
+    { x: -65, z: 70, t: 7, door: 0 },
+    { x: -55, z: 70, t: 2, door: 3 },
+    { x: -45, z: 70, t: 2, door: 1 },
+    { x: -65, z: 80, t: 2, door: 2 },
+    { x: -55, z: 80, t: 2, door: 0 },
+    { x: -45, z: 80, t: 7, door: 1 },
 
-    { x: -15, z: -15, t: 0, door: 2 },
-    { x: -35, z: -15, t: 0, door: 3 },
-    { x: -55, z: -15, t: 1, door: 2 },
-    { x: -15, z: -35, t: 2, door: 0 },
-    { x: -35, z: -35, t: 0, door: 2 },
-    { x: -55, z: -35, t: 3, door: 0 },
-    { x: -15, z: -55, t: 0, door: 3 },
-    { x: -35, z: -55, t: 1, door: 1 },
-
-    { x: 75, z: 20, t: 3, door: 3 },
-    { x: 75, z: -20, t: 4, door: 2 },
-    { x: -75, z: 20, t: 3, door: 1 },
-    { x: -75, z: -20, t: 4, door: 0 },
-    { x: 20, z: 75, t: 3, door: 0 },
-    { x: -20, z: 75, t: 4, door: 1 },
-    { x: 20, z: -75, t: 3, door: 2 },
-    { x: -20, z: -75, t: 4, door: 3 },
+    // ===== SUBURBIO (SE: 40 a 85, 40 a 85) =====
+    { x: 55, z: 50, t: 5, door: 0 },
+    { x: 75, z: 50, t: 5, door: 2 },
+    { x: 55, z: 65, t: 6, door: 1 },
+    { x: 75, z: 65, t: 5, door: 3 },
+    { x: 55, z: 80, t: 6, door: 0 },
+    { x: 75, z: 80, t: 6, door: 2 },
   ];
-  const HOUSE_TEMPLATES = [
-    { name: 'Cobertura', w: 8, h: 4, d: 8, color: 0xaa8866, roofColor: 0x8B0000 },
-    { name: 'Deposito', w: 10, h: 5, d: 12, color: 0x696969, roofColor: 0x444444 },
-    { name: 'Oficina', w: 10, h: 5, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
-    { name: 'Predio', w: 12, h: 8, d: 12, color: 0x887766, roofColor: 0x333333 },
-    { name: 'Base', w: 14, h: 6, d: 14, color: 0x8B8682, roofColor: 0x2f2f2f },
-  ];
+
   for (const p of placements) {
     const t = HOUSE_TEMPLATES[p.t];
     gtaHouses.push({
@@ -203,6 +229,9 @@ io.on('connection', (socket) => {
       vehicles: gtaVehicles,
       houses: gtaHouses,
       weapons: WEAPONS,
+      shopItems: Object.entries(SHOP_ITEMS).map(([id, item]) => ({
+        id, name: item.name, price: item.price, category: item.category,
+      })),
       worldSize: WORLD_SIZE,
     });
     io.emit('players_update', Array.from(gtaPlayers.values()));
@@ -263,6 +292,18 @@ io.on('connection', (socket) => {
     if (!player || !WEAPONS[data.weapon]) return;
     player.weapon = data.weapon;
     player.ammo = WEAPONS[data.weapon].ammo;
+    io.emit('players_update', Array.from(gtaPlayers.values()));
+  });
+
+  socket.on('buy_item', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player || !player.isAlive) return;
+    const item = SHOP_ITEMS[data.itemId];
+    if (!item) return socket.emit('shop_error', 'Item invalido');
+    if (player.money < item.price) return socket.emit('shop_error', 'Dinheiro insuficiente');
+    player.money -= item.price;
+    item.effect(player);
+    socket.emit('shop_success', { itemId: data.itemId, money: player.money });
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
