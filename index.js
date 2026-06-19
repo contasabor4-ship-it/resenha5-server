@@ -112,31 +112,29 @@ function spawnHouses() {
     gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: Math.floor(Math.random() * 4) });
   };
 
-  const half = WORLD_SIZE / 2 - 15;
-  const spacing = 100;
-  const positions = [];
+  // Row 0 (z=-300): PR PR SO SO BA || PR PR SO SO PR
+  add(-340, -300, 2); add(-260, -300, 2); add(-180, -300, 1); add(-100, -300, 1); add(-40, -300, 4);
+  add(40, -300, 2); add(100, -300, 2); add(180, -300, 1); add(260, -300, 1); add(340, -300, 2);
 
-  for (let gx = -half; gx <= half; gx += spacing) {
-    for (let gz = -half; gz <= half; gz += spacing) {
-      const ox = gx + (Math.random() - 0.5) * 4;
-      const oz = gz + (Math.random() - 0.5) * 4;
-      if (Math.abs(ox) < 10 && Math.abs(oz) < 10) continue;
-      positions.push({ x: ox, z: oz });
-    }
-  }
+  // Row 1 (z=-180): CA CA CA CA || CA CA CA
+  add(-340, -180, 0); add(-260, -180, 0); add(-180, -180, 0); add(-100, -180, 0);
+  add(100, -180, 0); add(180, -180, 0); add(260, -180, 0);
 
-  for (let i = positions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [positions[i], positions[j]] = [positions[j], positions[i]];
-  }
+  // Row 2 (z=-60): SO SO PR PR || SO SO
+  add(-280, -60, 1); add(-180, -60, 1); add(-100, -60, 2); add(-40, -60, 2);
+  add(100, -60, 1); add(180, -60, 1);
 
-  const counts = [12, 12, 10, 6, 4];
-  let idx = 0;
-  for (let t = 0; t < 5; t++) {
-    for (let c = 0; c < counts[t] && idx < positions.length; c++, idx++) {
-      add(positions[idx].x, positions[idx].z, t);
-    }
-  }
+  // Row 3 (z=60): GA GA PR PR || BA BA
+  add(-280, 60, 3); add(-180, 60, 3); add(-100, 60, 2); add(-40, 60, 2);
+  add(100, 60, 4); add(180, 60, 4);
+
+  // Row 4 (z=180): CA CA SO SO PR PR SO SO CA
+  add(-340, 180, 0); add(-260, 180, 0); add(-180, 180, 1); add(-100, 180, 1);
+  add(-40, 180, 2); add(40, 180, 2); add(100, 180, 1); add(180, 180, 1); add(260, 180, 0);
+
+  // Row 5 (z=300): GA GA CA CA PR PR GA GA BA
+  add(-340, 300, 3); add(-260, 300, 3); add(-180, 300, 0); add(-100, 300, 0);
+  add(-40, 300, 2); add(40, 300, 2); add(100, 300, 3); add(180, 300, 3); add(260, 300, 4);
 }
 
 spawnVehicles();
