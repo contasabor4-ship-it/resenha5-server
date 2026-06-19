@@ -1,0 +1,17 @@
+{
+  "name": "resenha5-game-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "gta": "node server.js",
+    "hns": "node hns-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.5",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0"
+  }
+}
