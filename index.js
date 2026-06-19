@@ -17,116 +17,272 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', servers: ['gta', 'hns'] });
 });
 
-// ===== GTA SERVER =====
-const gtaPlayers = new Map();
-const gtaRooms = new Map();
+// ===== GTA SERVER (same protocol as server.js) =====
+const GTA_TICK_RATE = 20;
+const WORLD_SIZE = 200;
+const SPAWN_X = 0;
+const SPAWN_Z = 0;
 
-function gtaGenerateCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+const gtaPlayers = new Map();
+const gtaVehicles = [];
+const gtaProjectiles = [];
+
+const VEHICLE_MODELS = [
+  { name: 'Sedan', speed: 40, acceleration: 15, color: 0xff4444 },
+  { name: 'SUV', speed: 35, acceleration: 12, color: 0x4444ff },
+  { name: 'Sports', speed: 55, acceleration: 22, color: 0xffdd00 },
+  { name: 'Truck', speed: 25, acceleration: 8, color: 0x44cc44 },
+];
+
+function spawnGtaVehicles() {
+  for (let i = 0; i < 12; i++) {
+    const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
+    gtaVehicles.push({
+      id: `vehicle_${i}`,
+      model: model.name,
+      x: (Math.random() - 0.5) * WORLD_SIZE * 0.8,
+      y: 0.5,
+      z: (Math.random() - 0.5) * WORLD_SIZE * 0.8,
+      rotation: Math.random() * Math.PI * 2,
+      speed: 0,
+      maxSpeed: model.speed,
+      acceleration: model.acceleration,
+      color: model.color,
+      driver: null,
+      health: 100,
+    });
+  }
 }
+
+const GTA_MISSIONS = [
+  { id: 'robbery_1', name: 'Assalto a Loja', reward: 500, x: 40, z: 40, radius: 8 },
+  { id: 'robbery_2', name: 'Assalto ao Banco', reward: 1500, x: -60, z: 30, radius: 10 },
+  { id: 'robbery_3', name: 'Roubo de Veiculo', reward: 800, x: 20, z: -50, radius: 6 },
+  { id: 'delivery_1', name: 'Entrega Rapida', reward: 300, x: -30, z: -40, radius: 5 },
+];
+
+spawnGtaVehicles();
 
 ioGTA.on('connection', (socket) => {
   console.log(`GTA connected: ${socket.id}`);
 
-  socket.on('create_room', (data) => {
-    const code = gtaGenerateCode();
-    gtaRooms.set(code, {
-      code, host: socket.id, players: [],
-      status: 'lobby', mission: null, missionStep: 0,
-      vehicles: [], chat: [],
+  socket.on('join', (data) => {
+    const player = {
+      id: socket.id,
+      nickname: data.nickname || 'Player',
+      x: SPAWN_X + (Math.random() - 0.5) * 10,
+      y: 1,
+      z: SPAWN_Z + (Math.random() - 0.5) * 10,
+      rotation: 0,
+      health: 100,
+      money: 5000,
+      bank: 0,
+      weapon: 'pistol',
+      ammo: 30,
+      inVehicle: null,
+      isAlive: true,
+      speed: 0,
+      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+    };
+    gtaPlayers.set(socket.id, player);
+
+    socket.emit('welcome', {
+      player,
+      vehicles: gtaVehicles,
+      missions: GTA_MISSIONS,
+      worldSize: WORLD_SIZE,
     });
-    socket.emit('room_created', { code });
-  });
 
-  socket.on('join_room', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    if (room.status !== 'lobby') return socket.emit('error_msg', 'Jogo ja comecou');
-    if (room.players.length >= 8) return socket.emit('error_msg', 'Sala cheia');
-
-    const nick = (data.nickname || 'Player').slice(0, 16);
-    const existing = room.players.find(p => p.id === socket.id);
-    if (!existing) {
-      room.players.push({
-        id: socket.id, nickname: nick,
-        x: 0, y: 1, z: 0, rotation: 0, health: 100,
-        weapon: null, inVehicle: null, money: 0, isAlive: true,
-      });
-    }
-
-    socket.join(data.code);
-    socket.emit('room_joined', { code: data.code, room, playerId: socket.id });
-    ioGTA.to(data.code).emit('players_update', room.players);
-  });
-
-  socket.on('start_game', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room || room.host !== socket.id) return;
-    room.status = 'playing';
-    ioGTA.to(data.code).emit('game_started', { players: room.players });
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
   socket.on('position', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room) return;
-    const p = room.players.find(pl => pl.id === socket.id);
-    if (p) { p.x = data.x; p.y = data.y; p.z = data.z; p.rotation = data.rotation; }
-    socket.to(data.code).emit('player_moved', { id: socket.id, ...data });
-  });
-
-  socket.on('shoot', (data) => {
-    socket.to(data.code).emit('player_shoot', { id: socket.id, targetId: data.targetId });
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    player.x = data.x;
+    player.y = data.y;
+    player.z = data.z;
+    player.rotation = data.rotation;
+    player.speed = data.speed || 0;
   });
 
   socket.on('vehicle_enter', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room) return;
-    const p = room.players.find(pl => pl.id === socket.id);
-    if (p) p.inVehicle = data.vehicleId;
-    ioGTA.to(data.code).emit('vehicle_entered', { id: socket.id, vehicleId: data.vehicleId });
+    const player = gtaPlayers.get(socket.id);
+    if (!player || player.inVehicle) return;
+    const vehicle = gtaVehicles.find(v => v.id === data.vehicleId);
+    if (!vehicle || vehicle.driver) return;
+
+    const dist = Math.hypot(player.x - vehicle.x, player.z - vehicle.z);
+    if (dist > 5) return;
+
+    vehicle.driver = socket.id;
+    player.inVehicle = vehicle.id;
+    ioGTA.emit('vehicle_update', vehicle);
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
-  socket.on('vehicle_exit', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room) return;
-    const p = room.players.find(pl => pl.id === socket.id);
-    if (p) p.inVehicle = null;
-    ioGTA.to(data.code).emit('vehicle_exited', { id: socket.id });
+  socket.on('vehicle_exit', () => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player || !player.inVehicle) return;
+    const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
+    if (vehicle) {
+      vehicle.driver = null;
+      vehicle.speed = 0;
+      ioGTA.emit('vehicle_update', vehicle);
+    }
+    player.inVehicle = null;
+    player.x += 3;
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
-  socket.on('chat', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room) return;
-    const p = room.players.find(pl => pl.id === socket.id);
-    const msg = { id: uuidv4(), playerId: socket.id, nickname: p?.nickname || '???', text: data.text?.slice(0, 200) || '', timestamp: Date.now() };
-    room.chat.push(msg);
-    if (room.chat.length > 50) room.chat.shift();
-    ioGTA.to(data.code).emit('chat_msg', msg);
+  socket.on('vehicle_position', (data) => {
+    const vehicle = gtaVehicles.find(v => v.driver === socket.id);
+    if (!vehicle) return;
+    vehicle.x = data.x;
+    vehicle.y = data.y;
+    vehicle.z = data.z;
+    vehicle.rotation = data.rotation;
+    vehicle.speed = data.speed;
+  });
+
+  socket.on('shoot', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player || !player.isAlive || player.ammo <= 0) return;
+    player.ammo--;
+
+    gtaProjectiles.push({
+      id: uuidv4(),
+      ownerId: socket.id,
+      x: data.x,
+      y: data.y,
+      z: data.z,
+      dirX: data.dirX,
+      dirZ: data.dirZ,
+      speed: 80,
+      damage: 25,
+      life: 2,
+    });
+
+    ioGTA.emit('projectile_new', gtaProjectiles[gtaProjectiles.length - 1]);
   });
 
   socket.on('mission_start', (data) => {
-    const room = gtaRooms.get(data.code);
-    if (!room || room.host !== socket.id) return;
-    room.mission = data.missionType;
-    room.missionStep = 0;
-    ioGTA.to(data.code).emit('mission_update', { mission: room.mission, step: 0 });
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    const mission = GTA_MISSIONS.find(m => m.id === data.missionId);
+    if (!mission) return;
+
+    const dist = Math.hypot(player.x - mission.x, player.z - mission.z);
+    if (dist > mission.radius * 2) return;
+
+    socket.emit('mission_active', mission);
+  });
+
+  socket.on('mission_complete', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    const mission = GTA_MISSIONS.find(m => m.id === data.missionId);
+    if (!mission) return;
+
+    const dist = Math.hypot(player.x - mission.x, player.z - mission.z);
+    if (dist > mission.radius * 3) return;
+
+    player.money += mission.reward;
+    socket.emit('mission_reward', { missionId: mission.id, reward: mission.reward, money: player.money });
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
+  });
+
+  socket.on('bank_deposit', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    const amount = Math.min(data.amount, player.money);
+    if (amount <= 0) return;
+    player.money -= amount;
+    player.bank += amount;
+    socket.emit('bank_update', { money: player.money, bank: player.bank });
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
+  });
+
+  socket.on('bank_withdraw', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    const amount = Math.min(data.amount, player.bank);
+    if (amount <= 0) return;
+    player.bank -= amount;
+    player.money += amount;
+    socket.emit('bank_update', { money: player.money, bank: player.bank });
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
+  });
+
+  socket.on('chat', (data) => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player) return;
+    ioGTA.emit('chat_message', {
+      id: uuidv4(),
+      nickname: player.nickname,
+      message: (data.message || '').slice(0, 200),
+      timestamp: Date.now(),
+    });
+  });
+
+  socket.on('respawn', () => {
+    const player = gtaPlayers.get(socket.id);
+    if (!player || player.isAlive) return;
+    player.isAlive = true;
+    player.health = 100;
+    player.x = SPAWN_X + (Math.random() - 0.5) * 10;
+    player.z = SPAWN_Z + (Math.random() - 0.5) * 10;
+    if (player.inVehicle) {
+      const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
+      if (vehicle) { vehicle.driver = null; ioGTA.emit('vehicle_update', vehicle); }
+      player.inVehicle = null;
+    }
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
   socket.on('disconnect', () => {
-    for (const [code, room] of gtaRooms) {
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx !== -1) {
-        room.players.splice(idx, 1);
-        if (room.players.length === 0) { gtaRooms.delete(code); }
-        else {
-          if (room.host === socket.id) room.host = room.players[0].id;
-          ioGTA.to(code).emit('players_update', room.players);
+    const player = gtaPlayers.get(socket.id);
+    if (player && player.inVehicle) {
+      const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
+      if (vehicle) { vehicle.driver = null; ioGTA.emit('vehicle_update', vehicle); }
+    }
+    gtaPlayers.delete(socket.id);
+    ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
+    console.log(`GTA disconnected: ${socket.id}`);
+  });
+});
+
+setInterval(() => {
+  for (const proj of gtaProjectiles) {
+    proj.x += proj.dirX * proj.speed * (1 / GTA_TICK_RATE);
+    proj.z += proj.dirZ * proj.speed * (1 / GTA_TICK_RATE);
+    proj.life -= 1 / GTA_TICK_RATE;
+
+    for (const [id, player] of gtaPlayers) {
+      if (id === proj.ownerId || !player.isAlive) continue;
+      const dist = Math.hypot(proj.x - player.x, proj.z - player.z);
+      if (dist < 1.5) {
+        player.health -= proj.damage;
+        if (player.health <= 0) {
+          player.health = 0;
+          player.isAlive = false;
+          const shooter = gtaPlayers.get(proj.ownerId);
+          if (shooter) shooter.money += 100;
+          ioGTA.emit('player_death', { killerId: proj.ownerId, victimId: id });
+          ioGTA.emit('players_update', Array.from(gtaPlayers.values()));
         }
+        proj.life = 0;
         break;
       }
     }
-  });
-});
+  }
+
+  for (let i = gtaProjectiles.length - 1; i >= 0; i--) {
+    if (gtaProjectiles[i].life <= 0) gtaProjectiles.splice(i, 1);
+  }
+
+  ioGTA.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
+}, 1000 / GTA_TICK_RATE);
 
 // ===== HNS SERVER =====
 const MAP_SIZE = 60;
@@ -173,8 +329,9 @@ app.post('/create-room', (req, res) => {
   const { nickname } = req.body;
   if (!nickname) return res.status(400).json({ error: 'Nickname obrigatorio' });
   const code = hnsGenerateCode();
+  const hostId = `host_${code}`;
   hnsRooms.set(code, {
-    code, host: null, players: [], status: 'lobby', map: generateMap(),
+    code, host: hostId, players: [], status: 'lobby', map: generateMap(),
     seekers: [], hiders: [], prepTimeLeft: PREP_TIME, roundTimeLeft: ROUND_TIME,
     round: 0, maxRounds: 3, scores: {},
   });
@@ -184,6 +341,16 @@ app.post('/create-room', (req, res) => {
 ioHNS.on('connection', (socket) => {
   console.log(`HNS connected: ${socket.id}`);
 
+  socket.on('create_room', (data) => {
+    const code = hnsGenerateCode();
+    hnsRooms.set(code, {
+      code, host: null, players: [], status: 'lobby', map: generateMap(),
+      seekers: [], hiders: [], prepTimeLeft: PREP_TIME, roundTimeLeft: ROUND_TIME,
+      round: 0, maxRounds: 3, scores: {},
+    });
+    socket.emit('room_created', { code });
+  });
+
   socket.on('join_room', (data) => {
     const room = hnsRooms.get(data.code);
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
@@ -192,13 +359,15 @@ ioHNS.on('connection', (socket) => {
 
     if (!room.players.find(p => p.id === socket.id)) {
       const color = HIDER_COLORS[room.players.length % HIDER_COLORS.length];
-      room.players.push({
+      const player = {
         id: socket.id, nickname: (data.nickname || 'Player').slice(0, 16),
         x: (Math.random() - 0.5) * MAP_SIZE * 0.6, y: 1,
         z: (Math.random() - 0.5) * MAP_SIZE * 0.6,
         color, currentColor: color, isSeeker: false, isAlive: true, colorChangeCooldown: 0,
-      });
+      };
+      room.players.push(player);
       room.scores[socket.id] = 0;
+      if (room.host === null) room.host = socket.id;
     }
 
     socket.join(data.code);
@@ -224,7 +393,6 @@ ioHNS.on('connection', (socket) => {
       Math.floor(room.players.length / SEEKER_COUNT_PER_PLAYERS) + SEEKER_COUNT_BASE,
       Math.floor(room.players.length / 2)
     );
-    const shuffled = [...room.players].sort(() => Math.random() - 0.5);
     room.seekers = [];
     room.hiders = [];
 
@@ -334,7 +502,7 @@ function hnsLeaveRoom(socket, code) {
   room.hiders = room.hiders.filter(id => id !== socket.id);
   delete room.scores[socket.id];
   if (room.players.length === 0) { hnsRooms.delete(code); return; }
-  if (room.host === socket.id) room.host = room.players[0].id;
+  if (room.host === socket.id) room.host = room.players[0]?.id || null;
   socket.leave(code);
   ioHNS.to(code).emit('players_update', room.players.map(p => ({ ...p })));
 }
