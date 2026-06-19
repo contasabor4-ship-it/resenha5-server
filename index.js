@@ -113,7 +113,7 @@ function spawnHouses() {
   };
 
   const half = WORLD_SIZE / 2 - 15;
-  const spacing = 40;
+  const spacing = 100;
   const positions = [];
 
   for (let gx = -half; gx <= half; gx += spacing) {
@@ -130,7 +130,7 @@ function spawnHouses() {
     [positions[i], positions[j]] = [positions[j], positions[i]];
   }
 
-  const counts = [20, 18, 16, 8, 4];
+  const counts = [12, 12, 10, 6, 4];
   let idx = 0;
   for (let t = 0; t < 5; t++) {
     for (let c = 0; c < counts[t] && idx < positions.length; c++, idx++) {
