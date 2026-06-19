@@ -107,89 +107,31 @@ const SPAWN_POINTS = [
 function spawnHouses() {
   gtaHouses.length = 0;
   let id = 0;
-  const add = (x, z, t, door) => {
+  const add = (x, z, t) => {
     const tmpl = HOUSE_TEMPLATES[t];
-    gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: door });
+    gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: Math.floor(Math.random() * 4) });
   };
 
-  // Roads at: -120, -60, 0, 60, 120 (width 12, ±6)
-  // Building blocks between roads with 8 setback from road center
-  // Block x ranges: [-192,-132], [-112,-72], [-52,-12], [12,52], [72,112], [132,192]
-  // Skip center blocks overlapping plaza (radius 30)
+  const half = WORLD_SIZE / 2 - 20;
+  const count = 80;
+  const placed = [];
 
-  // ===== CENTER BLOCKS (near plaza, small buildings) =====
-  // NW: x[-52,-12] z[-52,-12]
-  add(-42, -42, 0, 3); add(-28, -42, 0, 0); add(-42, -28, 0, 1); add(-28, -28, 4, 2);
-  // NE: x[12,52] z[-52,-12]
-  add(22, -42, 0, 0); add(42, -42, 4, 3); add(22, -28, 0, 2); add(42, -28, 0, 1);
-  // SW: x[-52,-12] z[12,52]
-  add(-42, 22, 0, 2); add(-28, 22, 0, 3); add(-42, 42, 4, 0); add(-28, 42, 0, 1);
-  // SE: x[12,52] z[12,52]
-  add(22, 22, 0, 1); add(42, 22, 0, 2); add(22, 42, 0, 0); add(42, 42, 4, 3);
-
-  // ===== MIDDLE-RING BLOCKS (sobrados + predios) =====
-  // x[72,112] z[12,52]
-  add(82, 22, 1, 0); add(102, 22, 1, 2); add(82, 42, 2, 1); add(102, 42, 1, 3);
-  // x[72,112] z[-52,-12]
-  add(82, -22, 1, 3); add(102, -22, 2, 0); add(82, -42, 1, 1); add(102, -42, 1, 2);
-  // x[-112,-72] z[12,52]
-  add(-82, 22, 1, 1); add(-102, 22, 2, 3); add(-82, 42, 1, 0); add(-102, 42, 1, 2);
-  // x[-112,-72] z[-52,-12]
-  add(-82, -22, 2, 2); add(-102, -22, 1, 0); add(-82, -42, 1, 3); add(-102, -42, 2, 1);
-  // x[12,52] z[72,112]
-  add(22, 82, 1, 2); add(42, 82, 1, 0); add(22, 102, 2, 3); add(42, 102, 1, 1);
-  // x[12,52] z[-112,-72]
-  add(22, -82, 1, 0); add(42, -82, 2, 1); add(22, -102, 1, 3); add(42, -102, 1, 2);
-  // x[-52,-12] z[72,112]
-  add(-42, 82, 2, 0); add(-22, 82, 1, 2); add(-42, 102, 1, 1); add(-22, 102, 1, 3);
-  // x[-52,-12] z[-112,-72]
-  add(-42, -82, 1, 3); add(-22, -82, 1, 0); add(-42, -102, 2, 2); add(-22, -102, 1, 1);
-
-  // ===== OUTER BLOCKS (tall buildings + warehouses) =====
-  // x[132,192] z[12,52]
-  add(145, 22, 2, 0); add(165, 22, 2, 2); add(185, 22, 3, 1);
-  add(145, 42, 2, 3); add(165, 42, 2, 1); add(185, 42, 3, 0);
-  // x[132,192] z[-52,-12]
-  add(145, -22, 2, 1); add(165, -22, 3, 3); add(185, -22, 2, 0);
-  add(145, -42, 2, 2); add(165, -42, 2, 0); add(185, -42, 3, 1);
-  // x[-192,-132] z[12,52]
-  add(-145, 22, 2, 2); add(-165, 22, 2, 0); add(-185, 22, 3, 3);
-  add(-145, 42, 2, 1); add(-165, 42, 3, 2); add(-185, 42, 2, 0);
-  // x[-192,-132] z[-52,-12]
-  add(-145, -22, 3, 0); add(-165, -22, 2, 3); add(-185, -22, 2, 1);
-  add(-145, -42, 2, 2); add(-165, -42, 3, 1); add(-185, -42, 2, 3);
-  // x[12,52] z[132,192]
-  add(22, 145, 2, 1); add(42, 145, 3, 0); add(22, 165, 2, 3); add(42, 165, 2, 2);
-  add(22, 185, 3, 0); add(42, 185, 2, 1);
-  // x[12,52] z[-192,-132]
-  add(22, -145, 3, 2); add(42, -145, 2, 0); add(22, -165, 2, 1); add(42, -165, 3, 3);
-  add(22, -185, 2, 0); add(42, -185, 2, 2);
-  // x[-52,-12] z[132,192]
-  add(-42, 145, 3, 3); add(-22, 145, 2, 1); add(-42, 165, 2, 0); add(-22, 165, 2, 2);
-  add(-42, 185, 2, 3); add(-22, 185, 3, 0);
-  // x[-52,-12] z[-192,-132]
-  add(-42, -145, 2, 0); add(-22, -145, 2, 2); add(-42, -165, 3, 1); add(-22, -165, 2, 3);
-  add(-42, -185, 3, 2); add(-22, -185, 2, 0);
-
-  // ===== FAR CORNERS (galpoes + bars) =====
-  // x[72,112] z[72,112]
-  add(82, 82, 1, 0); add(102, 82, 4, 1); add(82, 102, 4, 2); add(102, 102, 1, 3);
-  // x[72,112] z[-112,-72]
-  add(82, -82, 4, 2); add(102, -82, 1, 3); add(82, -102, 1, 0); add(102, -102, 4, 1);
-  // x[-112,-72] z[72,112]
-  add(-82, 82, 1, 1); add(-102, 82, 1, 3); add(-82, 102, 4, 0); add(-102, 102, 4, 2);
-  // x[-112,-72] z[-112,-72]
-  add(-82, -82, 4, 3); add(-102, -82, 4, 1); add(-82, -102, 1, 2); add(-102, -102, 1, 0);
-
-  // ===== FAR OUTER CORNERS (big predios) =====
-  // x[132,192] z[132,192]
-  add(145, 145, 2, 0); add(175, 145, 2, 2); add(145, 175, 3, 1); add(175, 175, 2, 3);
-  // x[132,192] z[-192,-132]
-  add(145, -145, 3, 1); add(175, -145, 2, 3); add(145, -175, 2, 0); add(175, -175, 3, 2);
-  // x[-192,-132] z[132,192]
-  add(-145, 145, 2, 2); add(-175, 145, 3, 0); add(-145, 175, 2, 3); add(-175, 175, 2, 1);
-  // x[-192,-132] z[-192,-132]
-  add(-145, -145, 3, 3); add(-175, -145, 2, 1); add(-145, -175, 2, 2); add(-175, -175, 3, 0);
+  for (let i = 0; i < count; i++) {
+    let attempts = 0;
+    while (attempts < 50) {
+      const x = (Math.random() - 0.5) * half * 2;
+      const z = (Math.random() - 0.5) * half * 2;
+      if (Math.abs(x) < 10 && Math.abs(z) < 10) { attempts++; continue; }
+      const t = i < 25 ? 0 : i < 45 ? 1 : i < 65 ? 2 : i < 75 ? 3 : 4;
+      const tmpl = HOUSE_TEMPLATES[t];
+      let ok = true;
+      for (const p of placed) {
+        if (Math.abs(x - p.x) < (tmpl.w + p.w) / 2 + 3 && Math.abs(z - p.z) < (tmpl.d + p.d) / 2 + 3) { ok = false; break; }
+      }
+      if (ok) { add(x, z, t); placed.push({ x, z, w: tmpl.w, d: tmpl.d }); break; }
+      attempts++;
+    }
+  }
 }
 
 spawnVehicles();
