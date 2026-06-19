@@ -112,29 +112,32 @@ function spawnHouses() {
     gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: Math.floor(Math.random() * 4) });
   };
 
-  // Row 0 (z=-300): PR PR SO SO BA || PR PR SO SO PR
-  add(-340, -300, 2); add(-260, -300, 2); add(-180, -300, 1); add(-100, -300, 1); add(-40, -300, 4);
-  add(40, -300, 2); add(100, -300, 2); add(180, -300, 1); add(260, -300, 1); add(340, -300, 2);
+  // ===== GRID PRINCIPAL 5x5 =====
+  // Row Z=-320: PR PR SO SO BA
+  add(-320, -320, 2); add(-160, -320, 2); add(0, -320, 1); add(160, -320, 1); add(320, -320, 4);
+  // Row Z=-160: CA CA [avenida] CA CA
+  add(-320, -160, 0); add(-160, -160, 0); add(160, -160, 0); add(320, -160, 0);
+  // Row Z=0: SO PR [praça] PR SO
+  add(-320, 0, 1); add(-160, 0, 2); add(160, 0, 2); add(320, 0, 1);
+  // Row Z=160: GA PR [avenida] BA BA
+  add(-320, 160, 3); add(-160, 160, 2); add(160, 160, 4); add(320, 160, 4);
+  // Row Z=320: CA SO PR SO CA
+  add(-320, 320, 0); add(-160, 320, 1); add(0, 320, 2); add(160, 320, 1); add(320, 320, 0);
 
-  // Row 1 (z=-180): CA CA CA CA || CA CA CA
-  add(-340, -180, 0); add(-260, -180, 0); add(-180, -180, 0); add(-100, -180, 0);
-  add(100, -180, 0); add(180, -180, 0); add(260, -180, 0);
+  // ===== INTERMEDIÁRIOS (±80 dos pontos do grid) =====
+  // Pular x≈0 nas z=-160 e z=160 (avenida), pular (0,0) (praça)
 
-  // Row 2 (z=-60): SO SO PR PR || SO SO
-  add(-280, -60, 1); add(-180, -60, 1); add(-100, -60, 2); add(-40, -60, 2);
-  add(100, -60, 1); add(180, -60, 1);
+  // Z = -240 (entre -320 e -160)
+  add(-240, -240, 0); add(-80, -240, 1); add(80, -240, 1); add(240, -240, 0);
 
-  // Row 3 (z=60): GA GA PR PR || BA BA
-  add(-280, 60, 3); add(-180, 60, 3); add(-100, 60, 2); add(-40, 60, 2);
-  add(100, 60, 4); add(180, 60, 4);
+  // Z = -80 (entre -160 e 0)
+  add(-240, -80, 1); add(-80, -80, 2); add(80, -80, 2); add(240, -80, 1);
 
-  // Row 4 (z=180): CA CA SO SO PR PR SO SO CA
-  add(-340, 180, 0); add(-260, 180, 0); add(-180, 180, 1); add(-100, 180, 1);
-  add(-40, 180, 2); add(40, 180, 2); add(100, 180, 1); add(180, 180, 1); add(260, 180, 0);
+  // Z = 80 (entre 0 e 160)
+  add(-240, 80, 1); add(-80, 80, 2); add(80, 80, 2); add(240, 80, 1);
 
-  // Row 5 (z=300): GA GA CA CA PR PR GA GA BA
-  add(-340, 300, 3); add(-260, 300, 3); add(-180, 300, 0); add(-100, 300, 0);
-  add(-40, 300, 2); add(40, 300, 2); add(100, 300, 3); add(180, 300, 3); add(260, 300, 4);
+  // Z = 240 (entre 160 e 320)
+  add(-240, 240, 0); add(-80, 240, 1); add(80, 240, 1); add(240, 240, 0);
 }
 
 spawnVehicles();
