@@ -112,24 +112,29 @@ function spawnHouses() {
     gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: Math.floor(Math.random() * 4) });
   };
 
-  const half = WORLD_SIZE / 2 - 20;
-  const count = 80;
-  const placed = [];
+  const half = WORLD_SIZE / 2 - 15;
+  const spacing = 15;
+  const positions = [];
 
-  for (let i = 0; i < count; i++) {
-    let attempts = 0;
-    while (attempts < 50) {
-      const x = (Math.random() - 0.5) * half * 2;
-      const z = (Math.random() - 0.5) * half * 2;
-      if (Math.abs(x) < 10 && Math.abs(z) < 10) { attempts++; continue; }
-      const t = i < 25 ? 0 : i < 45 ? 1 : i < 65 ? 2 : i < 75 ? 3 : 4;
-      const tmpl = HOUSE_TEMPLATES[t];
-      let ok = true;
-      for (const p of placed) {
-        if (Math.abs(x - p.x) < (tmpl.w + p.w) / 2 + 3 && Math.abs(z - p.z) < (tmpl.d + p.d) / 2 + 3) { ok = false; break; }
-      }
-      if (ok) { add(x, z, t); placed.push({ x, z, w: tmpl.w, d: tmpl.d }); break; }
-      attempts++;
+  for (let gx = -half; gx <= half; gx += spacing) {
+    for (let gz = -half; gz <= half; gz += spacing) {
+      const ox = gx + (Math.random() - 0.5) * 4;
+      const oz = gz + (Math.random() - 0.5) * 4;
+      if (Math.abs(ox) < 10 && Math.abs(oz) < 10) continue;
+      positions.push({ x: ox, z: oz });
+    }
+  }
+
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+
+  const counts = [20, 18, 16, 8, 4];
+  let idx = 0;
+  for (let t = 0; t < 5; t++) {
+    for (let c = 0; c < counts[t] && idx < positions.length; c++, idx++) {
+      add(positions[idx].x, positions[idx].z, t);
     }
   }
 }
