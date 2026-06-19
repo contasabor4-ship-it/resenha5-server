@@ -87,42 +87,25 @@ function spawnHouses() {
   let id = 0;
 
   const neighborhoods = [
-    { cx: 25, cz: 25 }, { cx: -25, cz: 25 },
-    { cx: 25, cz: -25 }, { cx: -25, cz: -25 },
-    { cx: 0, cz: 35 }, { cx: 0, cz: -35 },
-    { cx: 35, cz: 0 }, { cx: -35, cz: 0 },
+    { cx: 10, cz: 10 }, { cx: -10, cz: 10 },
+    { cx: 10, cz: -10 }, { cx: -10, cz: -10 },
+    { cx: 30, cz: 10 }, { cx: -30, cz: 10 },
+    { cx: 30, cz: -10 }, { cx: -30, cz: -10 },
+    { cx: 10, cz: 30 }, { cx: -10, cz: 30 },
+    { cx: 10, cz: -30 }, { cx: -10, cz: -30 },
+    { cx: 30, cz: 30 }, { cx: -30, cz: 30 },
+    { cx: 30, cz: -30 }, { cx: -30, cz: -30 },
+    { cx: 50, cz: 10 }, { cx: -50, cz: 10 },
+    { cx: 50, cz: -10 }, { cx: -50, cz: -10 },
   ];
   for (const n of neighborhoods) {
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 2; col++) {
-        const template = HOUSE_TEMPLATES[Math.floor(Math.random() * HOUSE_TEMPLATES.length)];
-        gtaHouses.push({
-          id: `house_${id++}`,
-          name: template.name,
-          price: template.price,
-          x: n.cx + col * 15,
-          z: n.cz + row * 15,
-          w: template.w,
-          h: template.h,
-          d: template.d,
-          color: template.color,
-          owner: null,
-          interior: template.interior,
-        });
-      }
-    }
-  }
-
-  for (let i = 0; i < 10; i++) {
-    const angle = (i / 10) * Math.PI * 2;
-    const r = 45 + Math.random() * 10;
     const template = HOUSE_TEMPLATES[Math.floor(Math.random() * HOUSE_TEMPLATES.length)];
     gtaHouses.push({
       id: `house_${id++}`,
       name: template.name,
       price: template.price,
-      x: Math.cos(angle) * r,
-      z: Math.sin(angle) * r,
+      x: n.cx,
+      z: n.cz,
       w: template.w,
       h: template.h,
       d: template.d,
@@ -300,12 +283,27 @@ io.on('connection', (socket) => {
 
 setInterval(() => {
   for (const proj of gtaProjectiles) {
+    const oldX = proj.x;
+    const oldZ = proj.z;
     proj.x += proj.dirX * proj.speed * (1 / TICK_RATE);
     proj.z += proj.dirZ * proj.speed * (1 / TICK_RATE);
     proj.life -= 1 / TICK_RATE;
+
     for (const [id, player] of gtaPlayers) {
       if (id === proj.ownerId || !player.isAlive) continue;
-      if (Math.hypot(proj.x - player.x, proj.z - player.z) < 1.5) {
+
+      const dx = proj.x - oldX;
+      const dz = proj.z - oldZ;
+      const lenSq = dx * dx + dz * dz;
+      let t = 0;
+      if (lenSq > 0) {
+        t = Math.max(0, Math.min(1, ((player.x - oldX) * dx + (player.z - oldZ) * dz) / lenSq));
+      }
+      const closestX = oldX + t * dx;
+      const closestZ = oldZ + t * dz;
+      const dist = Math.hypot(closestX - player.x, closestZ - player.z);
+
+      if (dist < 2.0) {
         let dmg = proj.damage;
         if (player.armor > 0) {
           const absorbed = Math.min(player.armor, dmg * 0.6);
