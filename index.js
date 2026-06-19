@@ -23,7 +23,7 @@ app.get('/keepalive', (req, res) => {
 
 // ===== GTA SERVER =====
 const TICK_RATE = 20;
-const WORLD_SIZE = 200;
+const WORLD_SIZE = 400;
 const SPAWN_X = 0;
 const SPAWN_Z = 0;
 
@@ -70,35 +70,31 @@ const VEHICLE_MODELS = [
 ];
 
 const HOUSE_TEMPLATES = [
-  { name: 'Predio', w: 12, h: 12, d: 12, color: 0x8899aa, roofColor: 0x444444 },
-  { name: 'Escritorio', w: 14, h: 8, d: 10, color: 0x99aabb, roofColor: 0x333333 },
-  { name: 'Casa', w: 7, h: 3.5, d: 7, color: 0xcc9966, roofColor: 0x8B4513 },
-  { name: 'Galpao', w: 16, h: 7, d: 20, color: 0x666666, roofColor: 0x444444 },
-  { name: 'Container', w: 4, h: 3, d: 8, color: 0x2266aa, roofColor: 0x2266aa },
-  { name: 'Sobrado', w: 10, h: 7, d: 10, color: 0xddbb88, roofColor: 0x993333 },
-  { name: 'Bar', w: 8, h: 4, d: 8, color: 0x884422, roofColor: 0x228822 },
+  { name: 'Predio', w: 14, h: 14, d: 14, color: 0x8899aa, roofColor: 0x444444 },
+  { name: 'Escritorio', w: 16, h: 10, d: 12, color: 0x99aabb, roofColor: 0x333333 },
+  { name: 'Casa', w: 8, h: 4, d: 8, color: 0xcc9966, roofColor: 0x8B4513 },
+  { name: 'Galpao', w: 18, h: 8, d: 22, color: 0x666666, roofColor: 0x444444 },
+  { name: 'Container', w: 4, h: 3.5, d: 9, color: 0x2266aa, roofColor: 0x2266aa },
+  { name: 'Sobrado', w: 11, h: 8, d: 11, color: 0xddbb88, roofColor: 0x993333 },
+  { name: 'Bar', w: 10, h: 5, d: 10, color: 0x884422, roofColor: 0x228822 },
   { name: 'Barraca', w: 5, h: 3, d: 5, color: 0xCC6633, roofColor: 0xCC6633 },
 ];
 
 function spawnVehicles() {
   gtaVehicles.length = 0;
   const spots = [
-    { x: 18, z: 0, r: -Math.PI/2 },
-    { x: -18, z: 0, r: Math.PI/2 },
-    { x: 0, z: -18, r: 0 },
-    { x: 0, z: 18, r: Math.PI },
-    { x: 40, z: 0, r: -Math.PI/2 },
-    { x: -40, z: 0, r: Math.PI/2 },
-    { x: 0, z: -40, r: 0 },
-    { x: 0, z: 40, r: Math.PI },
-    { x: -55, z: -38, r: 0 },
-    { x: 60, z: -42, r: Math.PI },
-    { x: -55, z: 42, r: Math.PI/2 },
-    { x: 60, z: 42, r: -Math.PI/2 },
-    { x: -38, z: -55, r: Math.PI/2 },
-    { x: 38, z: -55, r: -Math.PI/2 },
-    { x: -38, z: 55, r: Math.PI },
-    { x: 38, z: 55, r: 0 },
+    { x: 22, z: 0, r: -Math.PI / 2 }, { x: -22, z: 0, r: Math.PI / 2 },
+    { x: 0, z: -22, r: 0 }, { x: 0, z: 22, r: Math.PI },
+    { x: 50, z: 0, r: -Math.PI / 2 }, { x: -50, z: 0, r: Math.PI / 2 },
+    { x: 0, z: -50, r: 0 }, { x: 0, z: 50, r: Math.PI },
+    { x: 80, z: 0, r: -Math.PI / 2 }, { x: -80, z: 0, r: Math.PI / 2 },
+    { x: 0, z: -80, r: 0 }, { x: 0, z: 80, r: Math.PI },
+    { x: -100, z: -100, r: 0.4 }, { x: 100, z: -100, r: -0.4 },
+    { x: -100, z: 100, r: Math.PI + 0.4 }, { x: 100, z: 100, r: Math.PI - 0.4 },
+    { x: -100, z: 0, r: Math.PI / 2 }, { x: 100, z: 0, r: -Math.PI / 2 },
+    { x: 0, z: -100, r: 0 }, { x: 0, z: 100, r: Math.PI },
+    { x: -140, z: -60, r: Math.PI / 2 }, { x: 140, z: -60, r: -Math.PI / 2 },
+    { x: -140, z: 60, r: Math.PI / 2 }, { x: 140, z: 60, r: -Math.PI / 2 },
   ];
   for (let i = 0; i < spots.length; i++) {
     const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
@@ -113,8 +109,8 @@ function spawnVehicles() {
 }
 
 const SPAWN_POINTS = [
-  { x: 0, z: 0 }, { x: -8, z: 0 }, { x: 8, z: 0 },
-  { x: 0, z: -8 }, { x: 0, z: 8 }, { x: -5, z: -5 }, { x: 5, z: 5 },
+  { x: 0, z: 0 }, { x: -10, z: 0 }, { x: 10, z: 0 },
+  { x: 0, z: -10 }, { x: 0, z: 10 }, { x: -7, z: -7 }, { x: 7, z: 7 },
 ];
 
 function spawnHouses() {
@@ -125,55 +121,46 @@ function spawnHouses() {
     gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: door });
   };
 
-  // DOWNTOWN (NW) - Predios altos, blocos de cidade
-  add(-60, -60, 0, 3);
-  add(-40, -60, 0, 0);
-  add(-60, -40, 1, 1);
-  add(-40, -40, 0, 2);
-  add(-78, -55, 1, 1);
-  add(-25, -55, 1, 3);
-  add(-55, -78, 0, 0);
-  add(-55, -25, 2, 2);
-  add(-78, -78, 0, 3);
-  add(-25, -78, 1, 0);
+  // ===== DOWNTOWN (NW: x -200 a -60, z -200 a -60) =====
+  // Predios altos e escritorios em grade
+  add(-120, -120, 0, 3); add(-80, -120, 0, 0); add(-160, -120, 1, 1);
+  add(-120, -80, 1, 2); add(-80, -80, 0, 3); add(-160, -80, 0, 1);
+  add(-120, -160, 0, 0); add(-80, -160, 1, 2); add(-160, -160, 0, 3);
+  add(-100, -140, 1, 0); add(-140, -100, 1, 1); add(-60, -100, 0, 2);
+  add(-100, -60, 1, 3); add(-140, -140, 0, 0); add(-60, -60, 0, 1);
+  add(-180, -100, 1, 2); add(-100, -180, 0, 3); add(-180, -180, 1, 0);
+  add(-180, -60, 0, 1); add(-60, -180, 1, 2); add(-200, -140, 0, 3);
+  add(-200, -80, 1, 0); add(-140, -200, 0, 1); add(-80, -200, 1, 2);
+  add(-180, -200, 0, 0); add(-140, -180, 1, 3);
 
-  // INDUSTRIAL (NE) - Galpoes e containers
-  add(55, -60, 3, 0);
-  add(80, -60, 3, 3);
-  add(55, -38, 4, 0);
-  add(65, -38, 4, 2);
-  add(75, -38, 4, 0);
-  add(55, -82, 3, 1);
-  add(80, -82, 3, 2);
-  add(40, -55, 3, 3);
-  add(92, -55, 4, 0);
+  // ===== INDUSTRIAL (NE: x +60 a +200, z -200 a -60) =====
+  // Galpoes grandes e containers
+  add(120, -120, 3, 0); add(160, -120, 3, 3); add(100, -80, 4, 0);
+  add(130, -80, 4, 2); add(160, -80, 3, 1); add(120, -160, 3, 2);
+  add(160, -160, 3, 0); add(200, -120, 4, 3); add(200, -80, 4, 1);
+  add(80, -100, 3, 0); add(80, -160, 3, 2); add(100, -200, 4, 3);
+  add(140, -200, 4, 0); add(200, -200, 3, 1); add(180, -100, 4, 2);
+  add(180, -160, 4, 0); add(120, -200, 3, 3);
 
-  // FAVELA (SW) - Casas encostadas, becos
-  add(-65, 52, 2, 0);
-  add(-52, 52, 7, 3);
-  add(-65, 65, 7, 1);
-  add(-52, 65, 2, 2);
-  add(-65, 78, 2, 0);
-  add(-52, 78, 7, 3);
-  add(-65, 90, 7, 2);
-  add(-52, 90, 2, 1);
-  add(-78, 58, 2, 1);
-  add(-78, 75, 7, 0);
-  add(-38, 55, 2, 3);
-  add(-38, 72, 2, 0);
-  add(-78, 90, 2, 2);
+  // ===== FAVELA (SW: x -200 a -60, z +60 a +200) =====
+  // Casas pequenas encostadas, becos
+  add(-120, 120, 2, 0); add(-80, 120, 7, 3); add(-120, 80, 7, 1);
+  add(-80, 80, 2, 2); add(-160, 120, 2, 0); add(-160, 80, 7, 3);
+  add(-120, 160, 2, 1); add(-80, 160, 7, 2); add(-160, 160, 2, 0);
+  add(-120, 200, 7, 3); add(-80, 200, 2, 1); add(-160, 200, 7, 0);
+  add(-60, 100, 2, 2); add(-60, 140, 7, 3); add(-60, 180, 2, 0);
+  add(-200, 100, 7, 1); add(-200, 140, 2, 2); add(-200, 180, 7, 3);
+  add(-140, 100, 2, 0); add(-140, 180, 7, 1); add(-180, 140, 2, 2);
+  add(-100, 140, 7, 3); add(-100, 180, 2, 0);
 
-  // SUBURBIO (SE) - Casas com quintal
-  add(55, 55, 5, 0);
-  add(75, 55, 5, 2);
-  add(55, 75, 6, 1);
-  add(75, 75, 5, 3);
-  add(55, 92, 5, 0);
-  add(75, 92, 6, 2);
-  add(92, 55, 2, 1);
-  add(92, 75, 2, 3);
-  add(38, 55, 5, 0);
-  add(38, 75, 5, 2);
+  // ===== SUBURBIO (SE: x +60 a +200, z +60 a +200) =====
+  // Sobrados, bares, casas com quintal
+  add(120, 120, 5, 0); add(160, 120, 5, 2); add(120, 80, 6, 1);
+  add(160, 80, 5, 3); add(120, 160, 5, 0); add(160, 160, 6, 2);
+  add(120, 200, 5, 1); add(160, 200, 6, 3); add(200, 120, 7, 0);
+  add(200, 80, 2, 2); add(200, 160, 2, 1); add(200, 200, 7, 3);
+  add(80, 100, 5, 0); add(80, 140, 6, 2); add(80, 180, 5, 1);
+  add(140, 100, 2, 3); add(140, 180, 2, 0); add(180, 140, 5, 2);
 }
 
 spawnVehicles();
