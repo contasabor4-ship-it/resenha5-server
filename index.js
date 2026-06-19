@@ -24,6 +24,8 @@ app.get('/keepalive', (req, res) => {
 // ===== GTA SERVER =====
 const TICK_RATE = 20;
 const WORLD_SIZE = 200;
+const SPAWN_X = 0;
+const SPAWN_Z = 0;
 
 const gtaPlayers = new Map();
 const gtaVehicles = [];
@@ -47,106 +49,100 @@ const VEHICLE_MODELS = [
   { name: 'Coupe', maxSpeed: 52, acceleration: 20, color: 0x9933cc, handling: 0.93 },
 ];
 
-const HOUSE_TEMPLATES = [
-  { name: 'Casa', price: 3000, w: 8, h: 4, d: 8, color: 0xaa8866, roofColor: 0x8B0000 },
-  { name: 'Galpao', price: 5000, w: 10, h: 5, d: 12, color: 0x696969, roofColor: 0x444444 },
-  { name: 'Loja', price: 8000, w: 10, h: 5, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
-  { name: 'Predio', price: 15000, w: 12, h: 8, d: 12, color: 0x887766, roofColor: 0x333333 },
-  { name: 'Mansao', price: 30000, w: 16, h: 7, d: 14, color: 0x8B8682, roofColor: 0x2f2f2f },
-];
-
 function spawnVehicles() {
   gtaVehicles.length = 0;
-  const streetPositions = [];
-  for (let x = -WORLD_SIZE / 2; x < WORLD_SIZE / 2; x += 20) {
-    streetPositions.push({ x, z: (Math.floor(Math.random() * 6) - 3) * 20 + (Math.random() - 0.5) * 8 });
-    streetPositions.push({ x: (Math.floor(Math.random() * 6) - 3) * 20 + (Math.random() - 0.5) * 8, z: x });
-  }
-  for (let i = 0; i < 20; i++) {
+  const spots = [
+    { x: 5, z: -25, r: 0 }, { x: -5, z: -25, r: Math.PI },
+    { x: 25, z: 5, r: Math.PI / 2 }, { x: 25, z: -5, r: Math.PI / 2 },
+    { x: -25, z: 5, r: -Math.PI / 2 }, { x: -25, z: -5, r: -Math.PI / 2 },
+    { x: 5, z: 25, r: 0 }, { x: -5, z: 25, r: Math.PI },
+    { x: 60, z: 5, r: 0 }, { x: 60, z: -5, r: Math.PI },
+    { x: -60, z: 5, r: 0 }, { x: -60, z: -5, r: Math.PI },
+    { x: 5, z: 60, r: Math.PI / 2 }, { x: -5, z: 60, r: Math.PI / 2 },
+    { x: 5, z: -60, r: Math.PI / 2 }, { x: -5, z: -60, r: Math.PI / 2 },
+    { x: 40, z: 40, r: 0.5 }, { x: -40, z: 40, r: -0.5 },
+    { x: 40, z: -40, r: 2.5 }, { x: -40, z: -40, r: 3.5 },
+  ];
+  for (let i = 0; i < spots.length; i++) {
     const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
-    const pos = streetPositions[i % streetPositions.length];
+    const s = spots[i];
     gtaVehicles.push({
-      id: `vehicle_${i}`,
-      model: model.name,
-      x: pos.x + (Math.random() - 0.5) * 4,
-      y: 0.5,
-      z: pos.z + (Math.random() - 0.5) * 4,
-      rotation: Math.random() * Math.PI * 2,
-      speed: 0,
-      maxSpeed: model.maxSpeed,
-      acceleration: model.acceleration,
-      handling: model.handling,
-      color: model.color,
-      driver: null,
-      health: 100,
+      id: `vehicle_${i}`, model: model.name,
+      x: s.x, y: 0.5, z: s.z, rotation: s.r,
+      speed: 0, maxSpeed: model.maxSpeed, acceleration: model.acceleration,
+      handling: model.handling, color: model.color, driver: null, health: 100,
     });
   }
 }
 
+const SPAWN_POINTS = [
+  { x: 0, z: 0 }, { x: 10, z: 5 }, { x: -10, z: 5 },
+  { x: 5, z: 10 }, { x: -5, z: 10 },
+];
+
 function spawnHouses() {
   gtaHouses.length = 0;
   let id = 0;
-
   const placements = [
-    { x: 10, z: 10, t: 0, door: 0 },
-    { x: 30, z: 10, t: 0, door: 3 },
-    { x: 10, z: 30, t: 0, door: 0 },
-    { x: 30, z: 30, t: 1, door: 3 },
-    { x: -10, z: 10, t: 2, door: 0 },
-    { x: -10, z: 30, t: 0, door: 1 },
-    { x: 10, z: -10, t: 0, door: 2 },
-    { x: 30, z: -10, t: 2, door: 2 },
+    { x: 15, z: 15, t: 0, door: 0 },
+    { x: 35, z: 15, t: 1, door: 3 },
+    { x: 55, z: 15, t: 0, door: 0 },
+    { x: 15, z: 35, t: 2, door: 1 },
+    { x: 35, z: 35, t: 0, door: 0 },
+    { x: 55, z: 35, t: 3, door: 2 },
+    { x: 15, z: 55, t: 0, door: 3 },
+    { x: 35, z: 55, t: 2, door: 1 },
 
-    { x: 80, z: 80, t: 3, door: 0 },
-    { x: 96, z: 80, t: 3, door: 3 },
-    { x: 80, z: 96, t: 3, door: 0 },
-    { x: 96, z: 96, t: 3, door: 2 },
-    { x: 80, z: 64, t: 1, door: 0 },
-    { x: 96, z: 64, t: 1, door: 2 },
+    { x: -15, z: 15, t: 0, door: 0 },
+    { x: -35, z: 15, t: 2, door: 3 },
+    { x: -55, z: 15, t: 0, door: 1 },
+    { x: -15, z: 35, t: 1, door: 0 },
+    { x: -35, z: 35, t: 0, door: 2 },
+    { x: -55, z: 35, t: 3, door: 1 },
+    { x: -15, z: 55, t: 0, door: 0 },
+    { x: -35, z: 55, t: 2, door: 3 },
 
-    { x: -80, z: 80, t: 0, door: 0 },
-    { x: -96, z: 80, t: 0, door: 3 },
-    { x: -80, z: 96, t: 0, door: 1 },
-    { x: -96, z: 96, t: 0, door: 2 },
-    { x: -64, z: 80, t: 0, door: 0 },
-    { x: -64, z: 96, t: 0, door: 1 },
-    { x: -80, z: 64, t: 0, door: 3 },
-    { x: -64, z: 64, t: 0, door: 2 },
+    { x: 15, z: -15, t: 0, door: 2 },
+    { x: 35, z: -15, t: 1, door: 3 },
+    { x: 55, z: -15, t: 0, door: 2 },
+    { x: 15, z: -35, t: 2, door: 0 },
+    { x: 35, z: -35, t: 0, door: 2 },
+    { x: 55, z: -35, t: 3, door: 0 },
+    { x: 15, z: -55, t: 0, door: 3 },
+    { x: 35, z: -55, t: 2, door: 1 },
 
-    { x: 80, z: -80, t: 4, door: 0 },
-    { x: 96, z: -80, t: 4, door: 3 },
-    { x: 80, z: -96, t: 4, door: 1 },
-    { x: 96, z: -96, t: 4, door: 2 },
-    { x: 80, z: -64, t: 4, door: 0 },
+    { x: -15, z: -15, t: 0, door: 2 },
+    { x: -35, z: -15, t: 0, door: 3 },
+    { x: -55, z: -15, t: 1, door: 2 },
+    { x: -15, z: -35, t: 2, door: 0 },
+    { x: -35, z: -35, t: 0, door: 2 },
+    { x: -55, z: -35, t: 3, door: 0 },
+    { x: -15, z: -55, t: 0, door: 3 },
+    { x: -35, z: -55, t: 1, door: 1 },
 
-    { x: -80, z: -80, t: 2, door: 0 },
-    { x: -96, z: -80, t: 2, door: 3 },
-    { x: -80, z: -96, t: 0, door: 1 },
-    { x: -96, z: -96, t: 0, door: 2 },
-    { x: -64, z: -80, t: 1, door: 0 },
-    { x: -64, z: -96, t: 1, door: 2 },
-
-    { x: 10, z: -60, t: 1, door: 2 },
-    { x: 30, z: -60, t: 1, door: 0 },
-    { x: -10, z: -60, t: 1, door: 2 },
-    { x: -30, z: -60, t: 0, door: 0 },
-    { x: 0, z: 60, t: 2, door: 0 },
-    { x: 20, z: 60, t: 2, door: 1 },
-    { x: -20, z: 60, t: 2, door: 3 },
+    { x: 75, z: 20, t: 3, door: 3 },
+    { x: 75, z: -20, t: 4, door: 2 },
+    { x: -75, z: 20, t: 3, door: 1 },
+    { x: -75, z: -20, t: 4, door: 0 },
+    { x: 20, z: 75, t: 3, door: 0 },
+    { x: -20, z: 75, t: 4, door: 1 },
+    { x: 20, z: -75, t: 3, door: 2 },
+    { x: -20, z: -75, t: 4, door: 3 },
   ];
-
+  const HOUSE_TEMPLATES = [
+    { name: 'Cobertura', w: 8, h: 4, d: 8, color: 0xaa8866, roofColor: 0x8B0000 },
+    { name: 'Deposito', w: 10, h: 5, d: 12, color: 0x696969, roofColor: 0x444444 },
+    { name: 'Oficina', w: 10, h: 5, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
+    { name: 'Predio', w: 12, h: 8, d: 12, color: 0x887766, roofColor: 0x333333 },
+    { name: 'Base', w: 14, h: 6, d: 14, color: 0x8B8682, roofColor: 0x2f2f2f },
+  ];
   for (const p of placements) {
-    const template = HOUSE_TEMPLATES[p.t];
+    const t = HOUSE_TEMPLATES[p.t];
     gtaHouses.push({
-      id: `house_${id++}`,
-      name: template.name,
-      price: template.price,
-      x: p.x, z: p.z,
-      w: template.w, h: template.h, d: template.d,
-      color: template.color,
-      roofColor: template.roofColor,
-      owner: null,
-      doorSide: p.door,
+      id: `house_${id++}`, name: t.name,
+      x: p.x, z: p.z, w: t.w, h: t.h, d: t.d,
+      color: t.color, roofColor: t.roofColor, doorSide: p.door,
+      isEasterEgg: id === 5,
     });
   }
 }
@@ -179,22 +175,25 @@ io.on('connection', (socket) => {
   socket.on('join', (data) => {
     const weaponKeys = Object.keys(WEAPONS);
     const startWeapon = weaponKeys[Math.floor(Math.random() * weaponKeys.length)];
+    const spawnIdx = gtaPlayers.size % SPAWN_POINTS.length;
+    const sp = SPAWN_POINTS[spawnIdx];
     const player = {
       id: socket.id,
       nickname: (data.nickname || 'Player').slice(0, 16),
-      x: (Math.random() - 0.5) * 20,
+      x: sp.x + (Math.random() - 0.5) * 4,
       y: 1,
-      z: (Math.random() - 0.5) * 20,
+      z: sp.z + (Math.random() - 0.5) * 4,
       rotation: 0,
       health: 100,
       armor: 0,
-      money: 1000,
+      money: 0,
       kills: 0,
       deaths: 0,
       weapon: startWeapon,
       ammo: WEAPONS[startWeapon].ammo,
       inVehicle: null,
       isAlive: true,
+      deathX: 0, deathY: 0, deathZ: 0,
       speed: 0,
       color: `hsl(${Math.random() * 360}, 70%, 50%)`,
     };
@@ -267,26 +266,13 @@ io.on('connection', (socket) => {
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
-  socket.on('buy_house', (data) => {
-    const player = gtaPlayers.get(socket.id);
-    if (!player) return;
-    const house = gtaHouses.find(h => h.id === data.houseId);
-    if (!house || house.owner) return;
-    if (Math.hypot(player.x - house.x, player.z - house.z) > 15) return;
-    if (player.money < house.price) return socket.emit('error_msg', 'Dinheiro insuficiente');
-    player.money -= house.price;
-    house.owner = socket.id;
-    socket.emit('house_bought', { houseId: house.id, money: player.money });
-    io.emit('houses_update', gtaHouses.map(h => ({ id: h.id, owner: h.owner, name: h.name })));
-    io.emit('players_update', Array.from(gtaPlayers.values()));
-  });
-
   socket.on('respawn', () => {
     const player = gtaPlayers.get(socket.id);
     if (!player || player.isAlive) return;
+    const sp = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
     player.isAlive = true; player.health = 100; player.armor = 0;
-    player.x = (Math.random() - 0.5) * 20;
-    player.z = (Math.random() - 0.5) * 20;
+    player.x = sp.x + (Math.random() - 0.5) * 4;
+    player.z = sp.z + (Math.random() - 0.5) * 4;
     if (player.inVehicle) {
       const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
       if (vehicle) { vehicle.driver = null; io.emit('vehicle_update', vehicle); }
@@ -358,13 +344,14 @@ setInterval(() => {
         player.health -= dmg;
         if (player.health <= 0) {
           player.health = 0; player.isAlive = false; player.deaths++;
+          player.deathX = player.x; player.deathY = player.y; player.deathZ = player.z;
           const killer = gtaPlayers.get(proj.ownerId);
           if (killer) {
             killer.money += 500; killer.kills++;
             gtaKillfeed.unshift({ killer: killer.nickname, victim: player.nickname, weapon: killer.weapon, time: Date.now() });
             if (gtaKillfeed.length > 10) gtaKillfeed.pop();
           }
-          io.emit('player_death', { killerId: proj.ownerId, victimId: id, killerName: killer?.nickname || '???', victimName: player.nickname, dmgMult });
+          io.emit('player_death', { killerId: proj.ownerId, victimId: id, killerName: killer?.nickname || '???', victimName: player.nickname, dmgMult, deathX: player.deathX, deathY: player.deathY, deathZ: player.deathZ });
           io.emit('killfeed', gtaKillfeed);
           io.emit('players_update', Array.from(gtaPlayers.values()));
         }
@@ -378,9 +365,7 @@ setInterval(() => {
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
 
   for (const v of gtaVehicles) {
-    if (v.driver) {
-      io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
-    }
+    io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
   }
 
   io.emit('players_update', Array.from(gtaPlayers.values()));
