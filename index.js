@@ -23,7 +23,7 @@ app.get('/keepalive', (req, res) => {
 
 // ===== GTA SERVER =====
 const TICK_RATE = 20;
-const WORLD_SIZE = 400;
+const WORLD_SIZE = 800;
 const SPAWN_X = 0;
 const SPAWN_Z = 0;
 
@@ -113,7 +113,7 @@ function spawnHouses() {
   };
 
   const half = WORLD_SIZE / 2 - 15;
-  const spacing = 15;
+  const spacing = 40;
   const positions = [];
 
   for (let gx = -half; gx <= half; gx += spacing) {
