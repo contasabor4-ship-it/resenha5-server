@@ -333,6 +333,7 @@ setInterval(() => {
     if (gtaProjectiles[i].life <= 0) gtaProjectiles.splice(i, 1);
   }
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
+  io.emit('players_update', Array.from(gtaPlayers.values()));
 }, 1000 / TICK_RATE);
 
 // ===== HNS SERVER =====
@@ -499,7 +500,9 @@ hns.on('connection', (socket) => {
 
   socket.on('start_game', (data) => {
     const room = hnsRooms.get(data.code);
-    if (!room || room.host !== socket.id) return;
+    if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
+    const isHost = room.host === socket.id || room.players[0]?.id === socket.id;
+    if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
     if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
 
     room.round++;
