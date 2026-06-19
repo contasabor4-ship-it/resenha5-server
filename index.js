@@ -573,4 +573,14 @@ function hnsEndRound(room, code) {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Combined Game Server running on port ${PORT}`);
+
+  const http = require('http');
+  const SERVER_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(() => {
+    http.get(`${SERVER_URL}/keepalive`, (res) => {
+      console.log(`Keepalive: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.log(`Keepalive error: ${err.message}`);
+    });
+  }, 10 * 60 * 1000);
 });
