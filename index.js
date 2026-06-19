@@ -48,12 +48,11 @@ const VEHICLE_MODELS = [
 ];
 
 const HOUSE_TEMPLATES = [
-  { name: 'Casa Pequena', price: 3000, w: 10, h: 5, d: 10, color: 0xaa8866, roofColor: 0x8B0000 },
-  { name: 'Casa Media', price: 8000, w: 14, h: 7, d: 12, color: 0x887766, roofColor: 0x654321 },
-  { name: 'Casa Grande', price: 20000, w: 18, h: 9, d: 16, color: 0x776655, roofColor: 0x4a2800 },
-  { name: 'Mansao', price: 50000, w: 24, h: 10, d: 20, color: 0x8B8682, roofColor: 0x2f2f2f },
-  { name: 'Galpao', price: 5000, w: 16, h: 6, d: 20, color: 0x696969, roofColor: 0x444444 },
-  { name: 'Loja', price: 12000, w: 12, h: 6, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
+  { name: 'Casa', price: 3000, w: 8, h: 4, d: 8, color: 0xaa8866, roofColor: 0x8B0000 },
+  { name: 'Galpao', price: 5000, w: 10, h: 5, d: 12, color: 0x696969, roofColor: 0x444444 },
+  { name: 'Loja', price: 8000, w: 10, h: 5, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
+  { name: 'Predio', price: 15000, w: 12, h: 8, d: 12, color: 0x887766, roofColor: 0x333333 },
+  { name: 'Mansao', price: 30000, w: 16, h: 7, d: 14, color: 0x8B8682, roofColor: 0x2f2f2f },
 ];
 
 function spawnVehicles() {
@@ -88,55 +87,67 @@ function spawnHouses() {
   gtaHouses.length = 0;
   let id = 0;
 
-  const districts = [
-    { name: 'Centro', cx: 0, cz: 0, houses: [
-      { dx: 12, dz: 12, t: 1 }, { dx: -12, dz: 12, t: 1 }, { dx: 12, dz: -12, t: 2 },
-      { dx: -12, dz: -12, t: 2 }, { dx: 32, dz: 12, t: 3 }, { dx: -32, dz: 12, t: 1 },
-    ]},
-    { name: 'Industrial', cx: 65, cz: 65, houses: [
-      { dx: 0, dz: 0, t: 5 }, { dx: 18, dz: 0, t: 5 }, { dx: 0, dz: 18, t: 5 },
-      { dx: -18, dz: 0, t: 0 }, { dx: 0, dz: -18, t: 0 }, { dx: 18, dz: 18, t: 0 },
-    ]},
-    { name: 'Favela', cx: -65, cz: 65, houses: [
-      { dx: 0, dz: 0, t: 0 }, { dx: 14, dz: 0, t: 0 }, { dx: -14, dz: 0, t: 0 },
-      { dx: 0, dz: 14, t: 0 }, { dx: 14, dz: 14, t: 0 }, { dx: -14, dz: 14, t: 0 },
-      { dx: 7, dz: 7, t: 0 }, { dx: -7, dz: 7, t: 0 },
-    ]},
-    { name: 'Mansoes', cx: 65, cz: -65, houses: [
-      { dx: 0, dz: 0, t: 3 }, { dx: 28, dz: 0, t: 3 }, { dx: 0, dz: 28, t: 3 },
-      { dx: 28, dz: 28, t: 3 }, { dx: -28, dz: 0, t: 2 }, { dx: 0, dz: -28, t: 2 },
-    ]},
-    { name: 'Suburbio', cx: -65, cz: -65, houses: [
-      { dx: 0, dz: 0, t: 1 }, { dx: 18, dz: 0, t: 1 }, { dx: -18, dz: 0, t: 2 },
-      { dx: 0, dz: 18, t: 1 }, { dx: 0, dz: -18, t: 2 }, { dx: 18, dz: 18, t: 0 },
-      { dx: -18, dz: 18, t: 0 }, { dx: 18, dz: -18, t: 1 },
-    ]},
-    { name: 'Zona Rural', cx: 0, cz: -75, houses: [
-      { dx: -30, dz: 0, t: 4 }, { dx: 0, dz: 0, t: 4 }, { dx: 30, dz: 0, t: 4 },
-      { dx: -15, dz: 20, t: 0 }, { dx: 15, dz: 20, t: 0 }, { dx: 0, dz: -20, t: 4 },
-    ]},
+  const placements = [
+    { x: 10, z: 10, t: 0, door: 0 },
+    { x: 30, z: 10, t: 0, door: 3 },
+    { x: 10, z: 30, t: 0, door: 0 },
+    { x: 30, z: 30, t: 1, door: 3 },
+    { x: -10, z: 10, t: 2, door: 0 },
+    { x: -10, z: 30, t: 0, door: 1 },
+    { x: 10, z: -10, t: 0, door: 2 },
+    { x: 30, z: -10, t: 2, door: 2 },
+
+    { x: 80, z: 80, t: 3, door: 0 },
+    { x: 96, z: 80, t: 3, door: 3 },
+    { x: 80, z: 96, t: 3, door: 0 },
+    { x: 96, z: 96, t: 3, door: 2 },
+    { x: 80, z: 64, t: 1, door: 0 },
+    { x: 96, z: 64, t: 1, door: 2 },
+
+    { x: -80, z: 80, t: 0, door: 0 },
+    { x: -96, z: 80, t: 0, door: 3 },
+    { x: -80, z: 96, t: 0, door: 1 },
+    { x: -96, z: 96, t: 0, door: 2 },
+    { x: -64, z: 80, t: 0, door: 0 },
+    { x: -64, z: 96, t: 0, door: 1 },
+    { x: -80, z: 64, t: 0, door: 3 },
+    { x: -64, z: 64, t: 0, door: 2 },
+
+    { x: 80, z: -80, t: 4, door: 0 },
+    { x: 96, z: -80, t: 4, door: 3 },
+    { x: 80, z: -96, t: 4, door: 1 },
+    { x: 96, z: -96, t: 4, door: 2 },
+    { x: 80, z: -64, t: 4, door: 0 },
+
+    { x: -80, z: -80, t: 2, door: 0 },
+    { x: -96, z: -80, t: 2, door: 3 },
+    { x: -80, z: -96, t: 0, door: 1 },
+    { x: -96, z: -96, t: 0, door: 2 },
+    { x: -64, z: -80, t: 1, door: 0 },
+    { x: -64, z: -96, t: 1, door: 2 },
+
+    { x: 10, z: -60, t: 1, door: 2 },
+    { x: 30, z: -60, t: 1, door: 0 },
+    { x: -10, z: -60, t: 1, door: 2 },
+    { x: -30, z: -60, t: 0, door: 0 },
+    { x: 0, z: 60, t: 2, door: 0 },
+    { x: 20, z: 60, t: 2, door: 1 },
+    { x: -20, z: 60, t: 2, door: 3 },
   ];
 
-  for (const district of districts) {
-    for (const h of district.houses) {
-      const template = HOUSE_TEMPLATES[h.t];
-      const x = district.cx + h.dx;
-      const z = district.cz + h.dz;
-      gtaHouses.push({
-        id: `house_${id++}`,
-        name: template.name,
-        price: template.price,
-        x, z,
-        w: template.w,
-        h: template.h,
-        d: template.d,
-        color: template.color,
-        roofColor: template.roofColor,
-        owner: null,
-        district: district.name,
-        doorDir: Math.atan2(h.dx, h.dz),
-      });
-    }
+  for (const p of placements) {
+    const template = HOUSE_TEMPLATES[p.t];
+    gtaHouses.push({
+      id: `house_${id++}`,
+      name: template.name,
+      price: template.price,
+      x: p.x, z: p.z,
+      w: template.w, h: template.h, d: template.d,
+      color: template.color,
+      roofColor: template.roofColor,
+      owner: null,
+      doorSide: p.door,
+    });
   }
 }
 
@@ -242,7 +253,7 @@ io.on('connection', (socket) => {
     gtaProjectiles.push({
       id: uuidv4(), ownerId: socket.id,
       x: data.x, y: data.y, z: data.z,
-      dirX: data.dirX, dirZ: data.dirZ,
+      dirX: data.dirX, dirY: data.dirY || 0, dirZ: data.dirZ,
       speed: 100, damage: weapon.damage, life: 1.5,
     });
     io.emit('projectile_new', gtaProjectiles[gtaProjectiles.length - 1]);
@@ -309,8 +320,10 @@ setInterval(() => {
   for (const proj of gtaProjectiles) {
     const oldX = proj.x;
     const oldZ = proj.z;
+    const oldY = proj.y;
     proj.x += proj.dirX * proj.speed * (1 / TICK_RATE);
     proj.z += proj.dirZ * proj.speed * (1 / TICK_RATE);
+    proj.y += (proj.dirY || 0) * proj.speed * (1 / TICK_RATE);
     proj.life -= 1 / TICK_RATE;
 
     for (const [id, player] of gtaPlayers) {
@@ -325,10 +338,18 @@ setInterval(() => {
       }
       const closestX = oldX + t * dx;
       const closestZ = oldZ + t * dz;
+      const closestY = oldY + t * (proj.y - oldY);
       const dist = Math.hypot(closestX - player.x, closestZ - player.z);
 
-      if (dist < 2.0) {
-        let dmg = proj.damage;
+      if (dist < 1.5) {
+        let dmgMult = 1.0;
+        const hitY = closestY;
+        const playerBase = player.y || 1;
+        if (hitY > playerBase + 1.6) dmgMult = 2.0;
+        else if (hitY < playerBase + 0.4) dmgMult = 0.7;
+        else if (hitY < playerBase + 0.8) dmgMult = 0.85;
+
+        let dmg = Math.round(proj.damage * dmgMult);
         if (player.armor > 0) {
           const absorbed = Math.min(player.armor, dmg * 0.6);
           player.armor -= absorbed;
@@ -343,7 +364,7 @@ setInterval(() => {
             gtaKillfeed.unshift({ killer: killer.nickname, victim: player.nickname, weapon: killer.weapon, time: Date.now() });
             if (gtaKillfeed.length > 10) gtaKillfeed.pop();
           }
-          io.emit('player_death', { killerId: proj.ownerId, victimId: id, killerName: killer?.nickname || '???', victimName: player.nickname });
+          io.emit('player_death', { killerId: proj.ownerId, victimId: id, killerName: killer?.nickname || '???', victimName: player.nickname, dmgMult });
           io.emit('killfeed', gtaKillfeed);
           io.emit('players_update', Array.from(gtaPlayers.values()));
         }
@@ -355,6 +376,13 @@ setInterval(() => {
     if (gtaProjectiles[i].life <= 0) gtaProjectiles.splice(i, 1);
   }
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
+
+  for (const v of gtaVehicles) {
+    if (v.driver) {
+      io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
+    }
+  }
+
   io.emit('players_update', Array.from(gtaPlayers.values()));
 }, 1000 / TICK_RATE);
 
