@@ -84,11 +84,14 @@ function spawnVehicles() {
 
 function spawnHouses() {
   gtaHouses.length = 0;
-  const neighborhoods = [
-    { cx: 70, cz: 70 }, { cx: -70, cz: 70 },
-    { cx: 70, cz: -70 }, { cx: -70, cz: -70 },
-  ];
   let id = 0;
+
+  const neighborhoods = [
+    { cx: 25, cz: 25 }, { cx: -25, cz: 25 },
+    { cx: 25, cz: -25 }, { cx: -25, cz: -25 },
+    { cx: 0, cz: 35 }, { cx: 0, cz: -35 },
+    { cx: 35, cz: 0 }, { cx: -35, cz: 0 },
+  ];
   for (const n of neighborhoods) {
     for (let row = 0; row < 2; row++) {
       for (let col = 0; col < 2; col++) {
@@ -97,8 +100,8 @@ function spawnHouses() {
           id: `house_${id++}`,
           name: template.name,
           price: template.price,
-          x: n.cx + col * 20,
-          z: n.cz + row * 20,
+          x: n.cx + col * 15,
+          z: n.cz + row * 15,
           w: template.w,
           h: template.h,
           d: template.d,
@@ -108,6 +111,25 @@ function spawnHouses() {
         });
       }
     }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const r = 45 + Math.random() * 10;
+    const template = HOUSE_TEMPLATES[Math.floor(Math.random() * HOUSE_TEMPLATES.length)];
+    gtaHouses.push({
+      id: `house_${id++}`,
+      name: template.name,
+      price: template.price,
+      x: Math.cos(angle) * r,
+      z: Math.sin(angle) * r,
+      w: template.w,
+      h: template.h,
+      d: template.d,
+      color: template.color,
+      owner: null,
+      interior: template.interior,
+    });
   }
 }
 
@@ -329,44 +351,65 @@ function hnsGenerateCode() {
 function generateHnsMap() {
   const blocks = [];
   const colors = [0x888888, 0x6b8e23, 0x228b22, 0x8b4513, 0x4682b4, 0x9370db, 0xcd853f, 0x708090, 0xb8860b, 0x556b2f, 0x4a4a4a, 0x3d6b3d, 0x6b3d3d, 0x3d3d6b];
-
-  for (let i = 0; i < 60; i++) {
-    const w = HNS_BLOCK_SIZE + Math.floor(Math.random() * 4) * HNS_BLOCK_SIZE;
-    const h = HNS_BLOCK_SIZE + Math.floor(Math.random() * 6) * HNS_BLOCK_SIZE;
-    const d = HNS_BLOCK_SIZE + Math.floor(Math.random() * 4) * HNS_BLOCK_SIZE;
-    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - w);
-    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - d);
-    blocks.push({ x, y: h / 2, z, w, h, d, color: colors[Math.floor(Math.random() * colors.length)] });
-  }
-
-  for (let i = 0; i < 20; i++) {
-    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
-    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
-    blocks.push({ x, y: 1.5, z, w: 3, h: 3, d: 3, color: 0xdda0dd });
-  }
+  const pickColor = () => colors[Math.floor(Math.random() * colors.length)];
 
   for (let i = 0; i < 40; i++) {
-    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
-    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
-    const s = 1 + Math.random() * 2;
-    blocks.push({ x, y: s / 2, z, w: s, h: s, d: s, color: colors[Math.floor(Math.random() * colors.length)] });
+    const w = 4 + Math.floor(Math.random() * 4) * 4;
+    const h = 4 + Math.floor(Math.random() * 5) * 4;
+    const d = 4 + Math.floor(Math.random() * 4) * 4;
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - w);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - d);
+    blocks.push({ x, y: h / 2, z, w, h, d, color: pickColor() });
   }
 
   for (let i = 0; i < 30; i++) {
-    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
-    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
-    blocks.push({ x, y: 0.5, z, w: 1.5, h: 1, d: 1.5, color: 0x666666 });
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
+    const w = 2 + Math.random() * 5;
+    const h = 0.8 + Math.random() * 1.5;
+    const d = 1 + Math.random() * 3;
+    blocks.push({ x, y: h / 2, z, w, h, d, color: 0x8B4513 });
   }
 
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 25; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 3);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 3);
+    const s = 1 + Math.random() * 2;
+    blocks.push({ x, y: s / 2, z, w: s, h: s, d: s, color: pickColor() });
+  }
+
+  for (let i = 0; i < 50; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 1);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 1);
+    blocks.push({ x, y: 0.4, z, w: 0.4, h: 0.8, d: 0.4, color: 0x555555 });
+  }
+
+  for (let i = 0; i < 40; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    const w = 1 + Math.random() * 2;
+    const h = 0.6 + Math.random() * 1.2;
+    const d = 1 + Math.random() * 2;
+    blocks.push({ x, y: h / 2, z, w, h, d, color: pickColor() });
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
+    blocks.push({ x, y: 0.5, z, w: 3, h: 1, d: 1, color: 0x666666 });
+    blocks.push({ x, y: 1.5, z, w: 2, h: 1, d: 0.8, color: 0x8B4513 });
+  }
+
+  for (let i = 0; i < 12; i++) {
     const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
     const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
     blocks.push({ x, y: 4, z, w: 6, h: 0.5, d: 6, color: 0x8B4513 });
-    blocks.push({ x: x - 2.5, y: 2, z, w: 1, h: 4, d: 1, color: 0x8B4513 });
-    blocks.push({ x: x + 2.5, y: 2, z, w: 1, h: 4, d: 1, color: 0x8B4513 });
+    for (let dx = -1; dx <= 1; dx += 2) {
+      blocks.push({ x: x + dx * 2.5, y: 2, z, w: 1, h: 4, d: 1, color: 0x8B4513 });
+    }
   }
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 8; i++) {
     const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 10);
     const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 10);
     blocks.push({ x, y: 8, z, w: 10, h: 0.3, d: 10, color: 0x556b2f });
@@ -375,6 +418,33 @@ function generateHnsMap() {
         blocks.push({ x: x + dx * 4, y: 4, z: z + dz * 4, w: 1, h: 8, d: 1, color: 0x666666 });
       }
     }
+  }
+
+  for (let i = 0; i < 15; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
+    blocks.push({ x, y: 0.3, z, w: 8, h: 0.6, d: 0.6, color: pickColor() });
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 1);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 1);
+    const wallLen = 3 + Math.random() * 8;
+    const isX = Math.random() > 0.5;
+    blocks.push({
+      x, y: 1.5, z,
+      w: isX ? wallLen : 0.4,
+      h: 3,
+      d: isX ? 0.4 : wallLen,
+      color: pickColor()
+    });
+  }
+
+  for (let i = 0; i < 20; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    blocks.push({ x, y: 0.3, z, w: 1.5, h: 0.6, d: 1.5, color: 0x333333 });
+    blocks.push({ x, y: 1.2, z, w: 0.3, h: 1.2, d: 0.3, color: 0x555555 });
   }
 
   return blocks;
