@@ -83,18 +83,22 @@ const HOUSE_TEMPLATES = [
 function spawnVehicles() {
   gtaVehicles.length = 0;
   const spots = [
-    { x: 20, z: 0, r: -Math.PI/2 },
-    { x: -20, z: 0, r: Math.PI/2 },
-    { x: 0, z: -20, r: 0 },
-    { x: 0, z: 20, r: Math.PI },
-    { x: 45, z: 0, r: -Math.PI/2 },
-    { x: -45, z: 0, r: Math.PI/2 },
-    { x: 0, z: -45, r: 0 },
-    { x: 0, z: 45, r: Math.PI },
-    { x: 35, z: -35, r: -Math.PI/4 },
-    { x: -35, z: -35, r: Math.PI*3/4 },
-    { x: -35, z: 35, r: Math.PI*5/4 },
-    { x: 35, z: 35, r: Math.PI*7/4 },
+    { x: 18, z: 0, r: -Math.PI/2 },
+    { x: -18, z: 0, r: Math.PI/2 },
+    { x: 0, z: -18, r: 0 },
+    { x: 0, z: 18, r: Math.PI },
+    { x: 40, z: 0, r: -Math.PI/2 },
+    { x: -40, z: 0, r: Math.PI/2 },
+    { x: 0, z: -40, r: 0 },
+    { x: 0, z: 40, r: Math.PI },
+    { x: -55, z: -38, r: 0 },
+    { x: 60, z: -42, r: Math.PI },
+    { x: -55, z: 42, r: Math.PI/2 },
+    { x: 60, z: 42, r: -Math.PI/2 },
+    { x: -38, z: -55, r: Math.PI/2 },
+    { x: 38, z: -55, r: -Math.PI/2 },
+    { x: -38, z: 55, r: Math.PI },
+    { x: 38, z: 55, r: 0 },
   ];
   for (let i = 0; i < spots.length; i++) {
     const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
@@ -110,7 +114,7 @@ function spawnVehicles() {
 
 const SPAWN_POINTS = [
   { x: 0, z: 0 }, { x: -8, z: 0 }, { x: 8, z: 0 },
-  { x: 0, z: -8 }, { x: 0, z: 8 },
+  { x: 0, z: -8 }, { x: 0, z: 8 }, { x: -5, z: -5 }, { x: 5, z: 5 },
 ];
 
 function spawnHouses() {
@@ -126,35 +130,102 @@ function spawnHouses() {
     });
   };
 
-  // Centro (NW) - Predios urbanos
-  add(-75, -75, 0, 3);
-  add(-55, -75, 0, 0);
-  add(-75, -55, 1, 1);
-  add(-55, -55, 0, 2);
-  add(-75, -40, 1, 3);
-  add(-40, -75, 0, 1);
+  // ==========================================
+  // DOWNTOWN (NW) - City blocks with tall buildings
+  // ==========================================
 
-  // Industrial (NE) - Galpoes e containers
-  add(60, -75, 3, 0);
-  add(80, -75, 3, 3);
-  add(60, -55, 4, 0);
-  add(80, -55, 4, 2);
-  add(60, -40, 3, 1);
-  add(80, -40, 3, 2);
+  // Block A: main city block (centered at -55,-55)
+  add(-65, -65, 0, 3);
+  add(-45, -65, 0, 0);
+  add(-65, -45, 1, 1);
+  add(-45, -45, 0, 2);
 
-  // Favela (SW) - Casas e barracas
-  add(-75, 60, 2, 0);
-  add(-55, 60, 7, 3);
-  add(-40, 60, 2, 1);
-  add(-75, 78, 7, 0);
-  add(-55, 78, 2, 2);
-  add(-40, 78, 7, 1);
+  // Block B: second block north (centered at -30,-65)
+  add(-30, -72, 1, 0);
+  add(-18, -65, 0, 3);
 
-  // Suburbio (SE) - Sobrados e bares
-  add(60, 60, 5, 0);
-  add(80, 60, 5, 2);
-  add(60, 78, 6, 1);
-  add(80, 78, 5, 3);
+  // Block C: along west edge
+  add(-82, -65, 1, 1);
+  add(-82, -45, 0, 0);
+
+  // Block D: south row near ring road
+  add(-65, -30, 0, 2);
+  add(-45, -30, 1, 3);
+  add(-30, -30, 2, 0);
+
+  // Filler
+  add(-78, -82, 0, 0);
+  add(-30, -82, 1, 2);
+
+  // ==========================================
+  // INDUSTRIAL (NE) - Warehouses and containers
+  // ==========================================
+
+  // Main warehouse row
+  add(55, -65, 3, 0);
+  add(78, -65, 3, 3);
+
+  // Container yard
+  add(55, -45, 4, 0);
+  add(62, -45, 4, 2);
+  add(72, -45, 4, 0);
+  add(82, -45, 4, 3);
+
+  // Second warehouse row
+  add(55, -82, 3, 1);
+  add(78, -82, 3, 2);
+
+  // Near ring road
+  add(30, -30, 4, 0);
+  add(30, -55, 3, 3);
+
+  // Edge
+  add(82, -82, 4, 0);
+
+  // ==========================================
+  // FAVELA (SW) - Tightly packed small houses
+  // ==========================================
+
+  // Dense cluster 1
+  add(-65, 50, 2, 0);
+  add(-53, 50, 7, 3);
+  add(-65, 60, 7, 1);
+  add(-53, 60, 2, 2);
+  add(-59, 70, 2, 0);
+  add(-47, 70, 7, 3);
+
+  // Dense cluster 2
+  add(-65, 80, 2, 1);
+  add(-53, 80, 7, 0);
+  add(-65, 90, 7, 2);
+  add(-53, 90, 2, 3);
+
+  // Scattered favela
+  add(-80, 55, 2, 0);
+  add(-80, 72, 7, 1);
+  add(-40, 50, 2, 3);
+  add(-40, 68, 2, 0);
+  add(-80, 88, 2, 2);
+
+  // ==========================================
+  // SUBURB (SE) - Houses with yards and trees
+  // ==========================================
+
+  // House row 1
+  add(55, 55, 5, 0);
+  add(72, 55, 5, 2);
+  add(55, 72, 6, 1);
+  add(72, 72, 5, 3);
+
+  // House row 2
+  add(55, 88, 5, 0);
+  add(72, 88, 6, 2);
+
+  // Edge
+  add(85, 55, 2, 1);
+  add(85, 72, 2, 3);
+  add(38, 55, 5, 0);
+  add(38, 72, 5, 2);
 }
 
 spawnVehicles();
