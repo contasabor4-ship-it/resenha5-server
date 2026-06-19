@@ -17,65 +17,155 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', servers: ['gta', 'hns'] });
 });
 
+app.get('/keepalive', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
 // ===== GTA SERVER =====
-const GTA_TICK_RATE = 20;
+const TICK_RATE = 20;
 const WORLD_SIZE = 200;
-const SPAWN_X = 0;
-const SPAWN_Z = 0;
 
 const gtaPlayers = new Map();
 const gtaVehicles = [];
 const gtaProjectiles = [];
+const gtaHouses = [];
+const gtaKillfeed = [];
+
+const WEAPONS = {
+  pistol: { name: 'Pistol', damage: 25, fireRate: 400, ammo: 30, spread: 0.02, recoil: 0.03 },
+  shotgun: { name: 'Shotgun', damage: 15, fireRate: 800, ammo: 12, spread: 0.08, recoil: 0.06 },
+  smg: { name: 'SMG', damage: 15, fireRate: 100, ammo: 60, spread: 0.04, recoil: 0.02 },
+  rifle: { name: 'Rifle', damage: 40, fireRate: 600, ammo: 20, spread: 0.01, recoil: 0.05 },
+};
 
 const VEHICLE_MODELS = [
-  { name: 'Sedan', speed: 40, acceleration: 15, color: 0xff4444 },
-  { name: 'SUV', speed: 35, acceleration: 12, color: 0x4444ff },
-  { name: 'Sports', speed: 55, acceleration: 22, color: 0xffdd00 },
-  { name: 'Truck', speed: 25, acceleration: 8, color: 0x44cc44 },
+  { name: 'Sedan', maxSpeed: 45, acceleration: 18, color: 0xcc3333, handling: 0.92 },
+  { name: 'SUV', maxSpeed: 38, acceleration: 14, color: 0x3333cc, handling: 0.88 },
+  { name: 'Sports', maxSpeed: 60, acceleration: 25, color: 0xddcc00, handling: 0.95 },
+  { name: 'Truck', maxSpeed: 28, acceleration: 10, color: 0x33aa33, handling: 0.82 },
+  { name: 'Muscle', maxSpeed: 50, acceleration: 22, color: 0xff6600, handling: 0.90 },
+  { name: 'Coupe', maxSpeed: 52, acceleration: 20, color: 0x9933cc, handling: 0.93 },
 ];
 
-function spawnGtaVehicles() {
-  for (let i = 0; i < 12; i++) {
+const HOUSE_TEMPLATES = [
+  { name: 'Casa Pequena', price: 3000, w: 8, h: 5, d: 8, color: 0xaa8866, interior: true },
+  { name: 'Casa Media', price: 8000, w: 12, h: 7, d: 10, color: 0x887766, interior: true },
+  { name: 'Casa Grande', price: 20000, w: 16, h: 9, d: 14, color: 0x776655, interior: true },
+  { name: 'Mansao', price: 50000, w: 22, h: 12, d: 18, color: 0x665544, interior: true },
+];
+
+function spawnVehicles() {
+  gtaVehicles.length = 0;
+  const streetPositions = [];
+  for (let x = -WORLD_SIZE / 2; x < WORLD_SIZE / 2; x += 20) {
+    streetPositions.push({ x, z: (Math.floor(Math.random() * 6) - 3) * 20 + (Math.random() - 0.5) * 8 });
+    streetPositions.push({ x: (Math.floor(Math.random() * 6) - 3) * 20 + (Math.random() - 0.5) * 8, z: x });
+  }
+  for (let i = 0; i < 20; i++) {
     const model = VEHICLE_MODELS[i % VEHICLE_MODELS.length];
+    const pos = streetPositions[i % streetPositions.length];
     gtaVehicles.push({
       id: `vehicle_${i}`,
       model: model.name,
-      x: (Math.random() - 0.5) * WORLD_SIZE * 0.8,
+      x: pos.x + (Math.random() - 0.5) * 4,
       y: 0.5,
-      z: (Math.random() - 0.5) * WORLD_SIZE * 0.8,
+      z: pos.z + (Math.random() - 0.5) * 4,
       rotation: Math.random() * Math.PI * 2,
-      speed: 0, maxSpeed: model.speed, acceleration: model.acceleration,
-      color: model.color, driver: null, health: 100,
+      speed: 0,
+      maxSpeed: model.maxSpeed,
+      acceleration: model.acceleration,
+      handling: model.handling,
+      color: model.color,
+      driver: null,
+      health: 100,
     });
   }
 }
 
-const GTA_MISSIONS = [
-  { id: 'robbery_1', name: 'Assalto a Loja', reward: 500, x: 40, z: 40, radius: 8 },
-  { id: 'robbery_2', name: 'Assalto ao Banco', reward: 1500, x: -60, z: 30, radius: 10 },
-  { id: 'robbery_3', name: 'Roubo de Veiculo', reward: 800, x: 20, z: -50, radius: 6 },
-  { id: 'delivery_1', name: 'Entrega Rapida', reward: 300, x: -30, z: -40, radius: 5 },
-];
+function spawnHouses() {
+  gtaHouses.length = 0;
+  const neighborhoods = [
+    { cx: 70, cz: 70 }, { cx: -70, cz: 70 },
+    { cx: 70, cz: -70 }, { cx: -70, cz: -70 },
+  ];
+  let id = 0;
+  for (const n of neighborhoods) {
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const template = HOUSE_TEMPLATES[Math.floor(Math.random() * HOUSE_TEMPLATES.length)];
+        gtaHouses.push({
+          id: `house_${id++}`,
+          name: template.name,
+          price: template.price,
+          x: n.cx + col * 20,
+          z: n.cz + row * 20,
+          w: template.w,
+          h: template.h,
+          d: template.d,
+          color: template.color,
+          owner: null,
+          interior: template.interior,
+        });
+      }
+    }
+  }
+}
 
-spawnGtaVehicles();
+spawnVehicles();
+spawnHouses();
+
+function respawnVehicle(vehicle) {
+  const model = VEHICLE_MODELS.find(m => m.name === vehicle.model) || VEHICLE_MODELS[0];
+  vehicle.x = (Math.random() - 0.5) * WORLD_SIZE * 0.7;
+  vehicle.z = (Math.random() - 0.5) * WORLD_SIZE * 0.7;
+  vehicle.rotation = Math.random() * Math.PI * 2;
+  vehicle.speed = 0;
+  vehicle.driver = null;
+  vehicle.health = 100;
+  io.emit('vehicle_update', vehicle);
+}
+
+setInterval(() => {
+  for (const v of gtaVehicles) {
+    if (!v.driver && v.health < 100) {
+      v.health = Math.min(100, v.health + 2);
+    }
+  }
+}, 5000);
 
 io.on('connection', (socket) => {
   console.log(`GTA connected: ${socket.id}`);
 
   socket.on('join', (data) => {
+    const weaponKeys = Object.keys(WEAPONS);
+    const startWeapon = weaponKeys[Math.floor(Math.random() * weaponKeys.length)];
     const player = {
       id: socket.id,
-      nickname: data.nickname || 'Player',
-      x: SPAWN_X + (Math.random() - 0.5) * 10,
+      nickname: (data.nickname || 'Player').slice(0, 16),
+      x: (Math.random() - 0.5) * 20,
       y: 1,
-      z: SPAWN_Z + (Math.random() - 0.5) * 10,
-      rotation: 0, health: 100, money: 5000, bank: 0,
-      weapon: 'pistol', ammo: 30, inVehicle: null,
-      isAlive: true, speed: 0,
+      z: (Math.random() - 0.5) * 20,
+      rotation: 0,
+      health: 100,
+      armor: 0,
+      money: 1000,
+      kills: 0,
+      deaths: 0,
+      weapon: startWeapon,
+      ammo: WEAPONS[startWeapon].ammo,
+      inVehicle: null,
+      isAlive: true,
+      speed: 0,
       color: `hsl(${Math.random() * 360}, 70%, 50%)`,
     };
     gtaPlayers.set(socket.id, player);
-    socket.emit('welcome', { player, vehicles: gtaVehicles, missions: GTA_MISSIONS, worldSize: WORLD_SIZE });
+    socket.emit('welcome', {
+      player,
+      vehicles: gtaVehicles,
+      houses: gtaHouses,
+      weapons: WEAPONS,
+      worldSize: WORLD_SIZE,
+    });
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
@@ -91,7 +181,7 @@ io.on('connection', (socket) => {
     if (!player || player.inVehicle) return;
     const vehicle = gtaVehicles.find(v => v.id === data.vehicleId);
     if (!vehicle || vehicle.driver) return;
-    if (Math.hypot(player.x - vehicle.x, player.z - vehicle.z) > 5) return;
+    if (Math.hypot(player.x - vehicle.x, player.z - vehicle.z) > 6) return;
     vehicle.driver = socket.id;
     player.inVehicle = vehicle.id;
     io.emit('vehicle_update', vehicle);
@@ -116,50 +206,52 @@ io.on('connection', (socket) => {
 
   socket.on('shoot', (data) => {
     const player = gtaPlayers.get(socket.id);
-    if (!player || !player.isAlive || player.ammo <= 0) return;
+    if (!player || !player.isAlive || player.ammo <= 0 || player.inVehicle) return;
+    const weapon = WEAPONS[player.weapon];
+    if (!weapon) return;
     player.ammo--;
     gtaProjectiles.push({
-      id: uuidv4(), ownerId: socket.id, x: data.x, y: data.y, z: data.z,
-      dirX: data.dirX, dirZ: data.dirZ, speed: 80, damage: 25, life: 2,
+      id: uuidv4(), ownerId: socket.id,
+      x: data.x, y: data.y, z: data.z,
+      dirX: data.dirX, dirZ: data.dirZ,
+      speed: 100, damage: weapon.damage, life: 1.5,
     });
     io.emit('projectile_new', gtaProjectiles[gtaProjectiles.length - 1]);
   });
 
-  socket.on('mission_start', (data) => {
+  socket.on('weapon_switch', (data) => {
     const player = gtaPlayers.get(socket.id);
-    if (!player) return;
-    const mission = GTA_MISSIONS.find(m => m.id === data.missionId);
-    if (!mission || Math.hypot(player.x - mission.x, player.z - mission.z) > mission.radius * 2) return;
-    socket.emit('mission_active', mission);
-  });
-
-  socket.on('mission_complete', (data) => {
-    const player = gtaPlayers.get(socket.id);
-    if (!player) return;
-    const mission = GTA_MISSIONS.find(m => m.id === data.missionId);
-    if (!mission || Math.hypot(player.x - mission.x, player.z - mission.z) > mission.radius * 3) return;
-    player.money += mission.reward;
-    socket.emit('mission_reward', { missionId: mission.id, reward: mission.reward, money: player.money });
+    if (!player || !WEAPONS[data.weapon]) return;
+    player.weapon = data.weapon;
+    player.ammo = WEAPONS[data.weapon].ammo;
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
-  socket.on('bank_deposit', (data) => {
+  socket.on('buy_house', (data) => {
     const player = gtaPlayers.get(socket.id);
     if (!player) return;
-    const amount = Math.min(data.amount, player.money);
-    if (amount <= 0) return;
-    player.money -= amount; player.bank += amount;
-    socket.emit('bank_update', { money: player.money, bank: player.bank });
+    const house = gtaHouses.find(h => h.id === data.houseId);
+    if (!house || house.owner) return;
+    if (Math.hypot(player.x - house.x, player.z - house.z) > 15) return;
+    if (player.money < house.price) return socket.emit('error_msg', 'Dinheiro insuficiente');
+    player.money -= house.price;
+    house.owner = socket.id;
+    socket.emit('house_bought', { houseId: house.id, money: player.money });
+    io.emit('houses_update', gtaHouses.map(h => ({ id: h.id, owner: h.owner, name: h.name })));
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
-  socket.on('bank_withdraw', (data) => {
+  socket.on('respawn', () => {
     const player = gtaPlayers.get(socket.id);
-    if (!player) return;
-    const amount = Math.min(data.amount, player.bank);
-    if (amount <= 0) return;
-    player.bank -= amount; player.money += amount;
-    socket.emit('bank_update', { money: player.money, bank: player.bank });
+    if (!player || player.isAlive) return;
+    player.isAlive = true; player.health = 100; player.armor = 0;
+    player.x = (Math.random() - 0.5) * 20;
+    player.z = (Math.random() - 0.5) * 20;
+    if (player.inVehicle) {
+      const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
+      if (vehicle) { vehicle.driver = null; io.emit('vehicle_update', vehicle); }
+      player.inVehicle = null;
+    }
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
@@ -170,20 +262,6 @@ io.on('connection', (socket) => {
       id: uuidv4(), nickname: player.nickname,
       message: (data.message || '').slice(0, 200), timestamp: Date.now(),
     });
-  });
-
-  socket.on('respawn', () => {
-    const player = gtaPlayers.get(socket.id);
-    if (!player || player.isAlive) return;
-    player.isAlive = true; player.health = 100;
-    player.x = SPAWN_X + (Math.random() - 0.5) * 10;
-    player.z = SPAWN_Z + (Math.random() - 0.5) * 10;
-    if (player.inVehicle) {
-      const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
-      if (vehicle) { vehicle.driver = null; io.emit('vehicle_update', vehicle); }
-      player.inVehicle = null;
-    }
-    io.emit('players_update', Array.from(gtaPlayers.values()));
   });
 
   socket.on('disconnect', () => {
@@ -200,18 +278,29 @@ io.on('connection', (socket) => {
 
 setInterval(() => {
   for (const proj of gtaProjectiles) {
-    proj.x += proj.dirX * proj.speed * (1 / GTA_TICK_RATE);
-    proj.z += proj.dirZ * proj.speed * (1 / GTA_TICK_RATE);
-    proj.life -= 1 / GTA_TICK_RATE;
+    proj.x += proj.dirX * proj.speed * (1 / TICK_RATE);
+    proj.z += proj.dirZ * proj.speed * (1 / TICK_RATE);
+    proj.life -= 1 / TICK_RATE;
     for (const [id, player] of gtaPlayers) {
       if (id === proj.ownerId || !player.isAlive) continue;
       if (Math.hypot(proj.x - player.x, proj.z - player.z) < 1.5) {
-        player.health -= proj.damage;
+        let dmg = proj.damage;
+        if (player.armor > 0) {
+          const absorbed = Math.min(player.armor, dmg * 0.6);
+          player.armor -= absorbed;
+          dmg -= absorbed;
+        }
+        player.health -= dmg;
         if (player.health <= 0) {
-          player.health = 0; player.isAlive = false;
-          const shooter = gtaPlayers.get(proj.ownerId);
-          if (shooter) shooter.money += 100;
-          io.emit('player_death', { killerId: proj.ownerId, victimId: id });
+          player.health = 0; player.isAlive = false; player.deaths++;
+          const killer = gtaPlayers.get(proj.ownerId);
+          if (killer) {
+            killer.money += 500; killer.kills++;
+            gtaKillfeed.unshift({ killer: killer.nickname, victim: player.nickname, weapon: killer.weapon, time: Date.now() });
+            if (gtaKillfeed.length > 10) gtaKillfeed.pop();
+          }
+          io.emit('player_death', { killerId: proj.ownerId, victimId: id, killerName: killer?.nickname || '???', victimName: player.nickname });
+          io.emit('killfeed', gtaKillfeed);
           io.emit('players_update', Array.from(gtaPlayers.values()));
         }
         proj.life = 0; break;
@@ -222,11 +311,11 @@ setInterval(() => {
     if (gtaProjectiles[i].life <= 0) gtaProjectiles.splice(i, 1);
   }
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
-}, 1000 / GTA_TICK_RATE);
+}, 1000 / TICK_RATE);
 
 // ===== HNS SERVER =====
-const MAP_SIZE = 60;
-const BLOCK_SIZE = 4;
+const HNS_MAP_SIZE = 100;
+const HNS_BLOCK_SIZE = 4;
 const PREP_TIME = 10;
 const ROUND_TIME = 120;
 const COLOR_CHANGE_COOLDOWN = 3;
@@ -237,22 +326,57 @@ function hnsGenerateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-function generateMap() {
+function generateHnsMap() {
   const blocks = [];
-  for (let i = 0; i < 30; i++) {
-    const w = BLOCK_SIZE + Math.floor(Math.random() * 3) * BLOCK_SIZE;
-    const h = BLOCK_SIZE + Math.floor(Math.random() * 5) * BLOCK_SIZE;
-    const d = BLOCK_SIZE + Math.floor(Math.random() * 3) * BLOCK_SIZE;
-    const x = (Math.random() - 0.5) * (MAP_SIZE - w);
-    const z = (Math.random() - 0.5) * (MAP_SIZE - d);
-    const colors = [0x888888, 0x6b8e23, 0x228b22, 0x8b4513, 0x4682b4, 0x9370db, 0xcd853f, 0x708090, 0xb8860b, 0x556b2f];
+  const colors = [0x888888, 0x6b8e23, 0x228b22, 0x8b4513, 0x4682b4, 0x9370db, 0xcd853f, 0x708090, 0xb8860b, 0x556b2f, 0x4a4a4a, 0x3d6b3d, 0x6b3d3d, 0x3d3d6b];
+
+  for (let i = 0; i < 60; i++) {
+    const w = HNS_BLOCK_SIZE + Math.floor(Math.random() * 4) * HNS_BLOCK_SIZE;
+    const h = HNS_BLOCK_SIZE + Math.floor(Math.random() * 6) * HNS_BLOCK_SIZE;
+    const d = HNS_BLOCK_SIZE + Math.floor(Math.random() * 4) * HNS_BLOCK_SIZE;
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - w);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - d);
     blocks.push({ x, y: h / 2, z, w, h, d, color: colors[Math.floor(Math.random() * colors.length)] });
   }
-  for (let i = 0; i < 15; i++) {
-    const x = (Math.random() - 0.5) * (MAP_SIZE - 8);
-    const z = (Math.random() - 0.5) * (MAP_SIZE - 8);
+
+  for (let i = 0; i < 20; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 8);
     blocks.push({ x, y: 1.5, z, w: 3, h: 3, d: 3, color: 0xdda0dd });
   }
+
+  for (let i = 0; i < 40; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 4);
+    const s = 1 + Math.random() * 2;
+    blocks.push({ x, y: s / 2, z, w: s, h: s, d: s, color: colors[Math.floor(Math.random() * colors.length)] });
+  }
+
+  for (let i = 0; i < 30; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 2);
+    blocks.push({ x, y: 0.5, z, w: 1.5, h: 1, d: 1.5, color: 0x666666 });
+  }
+
+  for (let i = 0; i < 15; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 6);
+    blocks.push({ x, y: 4, z, w: 6, h: 0.5, d: 6, color: 0x8B4513 });
+    blocks.push({ x: x - 2.5, y: 2, z, w: 1, h: 4, d: 1, color: 0x8B4513 });
+    blocks.push({ x: x + 2.5, y: 2, z, w: 1, h: 4, d: 1, color: 0x8B4513 });
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const x = (Math.random() - 0.5) * (HNS_MAP_SIZE - 10);
+    const z = (Math.random() - 0.5) * (HNS_MAP_SIZE - 10);
+    blocks.push({ x, y: 8, z, w: 10, h: 0.3, d: 10, color: 0x556b2f });
+    for (let dx = -1; dx <= 1; dx += 2) {
+      for (let dz = -1; dz <= 1; dz += 2) {
+        blocks.push({ x: x + dx * 4, y: 4, z: z + dz * 4, w: 1, h: 8, d: 1, color: 0x666666 });
+      }
+    }
+  }
+
   return blocks;
 }
 
@@ -269,7 +393,7 @@ hns.on('connection', (socket) => {
   socket.on('create_room', () => {
     const code = hnsGenerateCode();
     hnsRooms.set(code, {
-      code, host: null, players: [], status: 'lobby', map: generateMap(),
+      code, host: null, players: [], status: 'lobby', map: generateHnsMap(),
       seekers: [], hiders: [], prepTimeLeft: PREP_TIME, roundTimeLeft: ROUND_TIME,
       round: 0, maxRounds: 3, scores: {},
     });
@@ -286,8 +410,8 @@ hns.on('connection', (socket) => {
       const color = HIDER_COLORS[room.players.length % HIDER_COLORS.length];
       room.players.push({
         id: socket.id, nickname: (data.nickname || 'Player').slice(0, 16),
-        x: (Math.random() - 0.5) * MAP_SIZE * 0.6, y: 1,
-        z: (Math.random() - 0.5) * MAP_SIZE * 0.6,
+        x: (Math.random() - 0.5) * HNS_MAP_SIZE * 0.6, y: 1,
+        z: (Math.random() - 0.5) * HNS_MAP_SIZE * 0.6,
         color, currentColor: color, isSeeker: false, isAlive: true, colorChangeCooldown: 0,
       });
       room.scores[socket.id] = 0;
@@ -320,19 +444,15 @@ hns.on('connection', (socket) => {
     for (let i = 0; i < room.players.length; i++) {
       const player = room.players[i];
       if (i < seekerCount) {
-        player.isSeeker = true;
-        player.color = SEEKER_COLOR;
-        player.currentColor = SEEKER_COLOR;
+        player.isSeeker = true; player.color = SEEKER_COLOR; player.currentColor = SEEKER_COLOR;
         room.seekers.push(player.id);
       } else {
-        player.isSeeker = false;
-        player.isAlive = true;
-        player.color = HIDER_COLORS[i % HIDER_COLORS.length];
-        player.currentColor = player.color;
+        player.isSeeker = false; player.isAlive = true;
+        player.color = HIDER_COLORS[i % HIDER_COLORS.length]; player.currentColor = player.color;
         room.hiders.push(player.id);
       }
-      player.x = (Math.random() - 0.5) * MAP_SIZE * 0.4;
-      player.z = (Math.random() - 0.5) * MAP_SIZE * 0.4;
+      player.x = (Math.random() - 0.5) * HNS_MAP_SIZE * 0.4;
+      player.z = (Math.random() - 0.5) * HNS_MAP_SIZE * 0.4;
     }
 
     hns.to(data.code).emit('game_start', {
@@ -453,5 +573,4 @@ function hnsEndRound(room, code) {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Combined Game Server running on port ${PORT}`);
-  console.log(`  GTA: default namespace | HNS: /hns namespace`);
 });
