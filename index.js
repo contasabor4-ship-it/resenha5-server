@@ -112,32 +112,23 @@ function spawnHouses() {
     gtaHouses.push({ id: `house_${id++}`, name: tmpl.name, x, z, w: tmpl.w, h: tmpl.h, d: tmpl.d, color: tmpl.color, roofColor: tmpl.roofColor, doorSide: Math.floor(Math.random() * 4) });
   };
 
-  // ===== GRID PRINCIPAL 5x5 =====
-  // Row Z=-320: PR PR SO SO BA
-  add(-320, -320, 2); add(-160, -320, 2); add(0, -320, 1); add(160, -320, 1); add(320, -320, 4);
-  // Row Z=-160: CA CA [avenida] CA CA
-  add(-320, -160, 0); add(-160, -160, 0); add(160, -160, 0); add(320, -160, 0);
-  // Row Z=0: SO PR [praça] PR SO
-  add(-320, 0, 1); add(-160, 0, 2); add(160, 0, 2); add(320, 0, 1);
-  // Row Z=160: GA PR [avenida] BA BA
-  add(-320, 160, 3); add(-160, 160, 2); add(160, 160, 4); add(320, 160, 4);
-  // Row Z=320: CA SO PR SO CA
-  add(-320, 320, 0); add(-160, 320, 1); add(0, 320, 2); add(160, 320, 1); add(320, 320, 0);
+  // 0=Casa 1=Sobrado 2=Predio 3=Galpao 4=Bar
 
-  // ===== INTERMEDIÁRIOS (±80 dos pontos do grid) =====
-  // Pular x≈0 nas z=-160 e z=160 (avenida), pular (0,0) (praça)
+  // GRID PRINCIPAL 5x5 (centro=plaza, 24 construções)
+  add(-300, -300, 2); add(-150, -300, 0); add(0, -300, 1); add(150, -300, 0); add(300, -300, 2);
+  add(-300, -150, 0); add(-150, -150, 1); add(0, -150, 3); add(150, -150, 1); add(300, -150, 0);
+  add(-300, 0, 1); add(-150, 0, 2); /*(0,0)=praça*/ add(150, 0, 2); add(300, 0, 1);
+  add(-300, 150, 0); add(-150, 150, 1); add(0, 150, 3); add(150, 150, 1); add(300, 150, 0);
+  add(-300, 300, 2); add(-150, 300, 0); add(0, 300, 1); add(150, 300, 0); add(300, 300, 2);
 
-  // Z = -240 (entre -320 e -160)
-  add(-240, -240, 0); add(-80, -240, 1); add(80, -240, 1); add(240, -240, 0);
+  // INTERMEDIÁRIOS (±75 do grid, 16 construções)
+  add(-225, -225, 1); add(-75, -225, 2); add(75, -225, 0); add(225, -225, 3);
+  add(-225, -75, 2); add(-75, -75, 3); add(75, -75, 1); add(225, -75, 0);
+  add(-225, 75, 0); add(-75, 75, 1); add(75, 75, 3); add(225, 75, 2);
+  add(-225, 225, 1); add(-75, 225, 0); add(75, 225, 2); add(225, 225, 4);
 
-  // Z = -80 (entre -160 e 0)
-  add(-240, -80, 1); add(-80, -80, 2); add(80, -80, 2); add(240, -80, 1);
-
-  // Z = 80 (entre 0 e 160)
-  add(-240, 80, 1); add(-80, 80, 2); add(80, 80, 2); add(240, 80, 1);
-
-  // Z = 240 (entre 160 e 320)
-  add(-240, 240, 0); add(-80, 240, 1); add(80, 240, 1); add(240, 240, 0);
+  // BORDAS (4 construções nas extremidades)
+  add(-350, -150, 3); add(-350, 150, 4); add(350, -150, 4); add(350, 150, 4);
 }
 
 spawnVehicles();
