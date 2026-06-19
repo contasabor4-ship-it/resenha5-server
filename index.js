@@ -48,10 +48,12 @@ const VEHICLE_MODELS = [
 ];
 
 const HOUSE_TEMPLATES = [
-  { name: 'Casa Pequena', price: 3000, w: 8, h: 5, d: 8, color: 0xaa8866, interior: true },
-  { name: 'Casa Media', price: 8000, w: 12, h: 7, d: 10, color: 0x887766, interior: true },
-  { name: 'Casa Grande', price: 20000, w: 16, h: 9, d: 14, color: 0x776655, interior: true },
-  { name: 'Mansao', price: 50000, w: 22, h: 12, d: 18, color: 0x665544, interior: true },
+  { name: 'Casa Pequena', price: 3000, w: 10, h: 5, d: 10, color: 0xaa8866, roofColor: 0x8B0000 },
+  { name: 'Casa Media', price: 8000, w: 14, h: 7, d: 12, color: 0x887766, roofColor: 0x654321 },
+  { name: 'Casa Grande', price: 20000, w: 18, h: 9, d: 16, color: 0x776655, roofColor: 0x4a2800 },
+  { name: 'Mansao', price: 50000, w: 24, h: 10, d: 20, color: 0x8B8682, roofColor: 0x2f2f2f },
+  { name: 'Galpao', price: 5000, w: 16, h: 6, d: 20, color: 0x696969, roofColor: 0x444444 },
+  { name: 'Loja', price: 12000, w: 12, h: 6, d: 10, color: 0xCD853F, roofColor: 0x228B22 },
 ];
 
 function spawnVehicles() {
@@ -86,33 +88,55 @@ function spawnHouses() {
   gtaHouses.length = 0;
   let id = 0;
 
-  const neighborhoods = [
-    { cx: 10, cz: 10 }, { cx: -10, cz: 10 },
-    { cx: 10, cz: -10 }, { cx: -10, cz: -10 },
-    { cx: 30, cz: 10 }, { cx: -30, cz: 10 },
-    { cx: 30, cz: -10 }, { cx: -30, cz: -10 },
-    { cx: 10, cz: 30 }, { cx: -10, cz: 30 },
-    { cx: 10, cz: -30 }, { cx: -10, cz: -30 },
-    { cx: 30, cz: 30 }, { cx: -30, cz: 30 },
-    { cx: 30, cz: -30 }, { cx: -30, cz: -30 },
-    { cx: 50, cz: 10 }, { cx: -50, cz: 10 },
-    { cx: 50, cz: -10 }, { cx: -50, cz: -10 },
+  const districts = [
+    { name: 'Centro', cx: 0, cz: 0, houses: [
+      { dx: 12, dz: 12, t: 1 }, { dx: -12, dz: 12, t: 1 }, { dx: 12, dz: -12, t: 2 },
+      { dx: -12, dz: -12, t: 2 }, { dx: 32, dz: 12, t: 3 }, { dx: -32, dz: 12, t: 1 },
+    ]},
+    { name: 'Industrial', cx: 65, cz: 65, houses: [
+      { dx: 0, dz: 0, t: 5 }, { dx: 18, dz: 0, t: 5 }, { dx: 0, dz: 18, t: 5 },
+      { dx: -18, dz: 0, t: 0 }, { dx: 0, dz: -18, t: 0 }, { dx: 18, dz: 18, t: 0 },
+    ]},
+    { name: 'Favela', cx: -65, cz: 65, houses: [
+      { dx: 0, dz: 0, t: 0 }, { dx: 14, dz: 0, t: 0 }, { dx: -14, dz: 0, t: 0 },
+      { dx: 0, dz: 14, t: 0 }, { dx: 14, dz: 14, t: 0 }, { dx: -14, dz: 14, t: 0 },
+      { dx: 7, dz: 7, t: 0 }, { dx: -7, dz: 7, t: 0 },
+    ]},
+    { name: 'Mansoes', cx: 65, cz: -65, houses: [
+      { dx: 0, dz: 0, t: 3 }, { dx: 28, dz: 0, t: 3 }, { dx: 0, dz: 28, t: 3 },
+      { dx: 28, dz: 28, t: 3 }, { dx: -28, dz: 0, t: 2 }, { dx: 0, dz: -28, t: 2 },
+    ]},
+    { name: 'Suburbio', cx: -65, cz: -65, houses: [
+      { dx: 0, dz: 0, t: 1 }, { dx: 18, dz: 0, t: 1 }, { dx: -18, dz: 0, t: 2 },
+      { dx: 0, dz: 18, t: 1 }, { dx: 0, dz: -18, t: 2 }, { dx: 18, dz: 18, t: 0 },
+      { dx: -18, dz: 18, t: 0 }, { dx: 18, dz: -18, t: 1 },
+    ]},
+    { name: 'Zona Rural', cx: 0, cz: -75, houses: [
+      { dx: -30, dz: 0, t: 4 }, { dx: 0, dz: 0, t: 4 }, { dx: 30, dz: 0, t: 4 },
+      { dx: -15, dz: 20, t: 0 }, { dx: 15, dz: 20, t: 0 }, { dx: 0, dz: -20, t: 4 },
+    ]},
   ];
-  for (const n of neighborhoods) {
-    const template = HOUSE_TEMPLATES[Math.floor(Math.random() * HOUSE_TEMPLATES.length)];
-    gtaHouses.push({
-      id: `house_${id++}`,
-      name: template.name,
-      price: template.price,
-      x: n.cx,
-      z: n.cz,
-      w: template.w,
-      h: template.h,
-      d: template.d,
-      color: template.color,
-      owner: null,
-      interior: template.interior,
-    });
+
+  for (const district of districts) {
+    for (const h of district.houses) {
+      const template = HOUSE_TEMPLATES[h.t];
+      const x = district.cx + h.dx;
+      const z = district.cz + h.dz;
+      gtaHouses.push({
+        id: `house_${id++}`,
+        name: template.name,
+        price: template.price,
+        x, z,
+        w: template.w,
+        h: template.h,
+        d: template.d,
+        color: template.color,
+        roofColor: template.roofColor,
+        owner: null,
+        district: district.name,
+        doorDir: Math.atan2(h.dx, h.dz),
+      });
+    }
   }
 }
 
