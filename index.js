@@ -114,21 +114,24 @@ function spawnHouses() {
 
   // 0=Casa 1=Sobrado 2=Predio 3=Galpao 4=Bar
 
-  // GRID PRINCIPAL 5x5 (centro=plaza, 24 construções)
+  // GRID PRINCIPAL 5x5 do usuario (24 construções, plaza no centro)
   add(-300, -300, 2); add(-150, -300, 0); add(0, -300, 1); add(150, -300, 0); add(300, -300, 2);
   add(-300, -150, 0); add(-150, -150, 1); add(0, -150, 3); add(150, -150, 1); add(300, -150, 0);
-  add(-300, 0, 1); add(-150, 0, 2); /*(0,0)=praça*/ add(150, 0, 2); add(300, 0, 1);
+  add(-300, 0, 1); add(-150, 0, 2); /*(0,0) praça*/ add(150, 0, 2); add(300, 0, 1);
   add(-300, 150, 0); add(-150, 150, 1); add(0, 150, 3); add(150, 150, 1); add(300, 150, 0);
   add(-300, 300, 2); add(-150, 300, 0); add(0, 300, 1); add(150, 300, 0); add(300, 300, 2);
 
-  // INTERMEDIÁRIOS (±75 do grid, 16 construções)
-  add(-225, -225, 1); add(-75, -225, 2); add(75, -225, 0); add(225, -225, 3);
-  add(-225, -75, 2); add(-75, -75, 3); add(75, -75, 1); add(225, -75, 0);
-  add(-225, 75, 0); add(-75, 75, 1); add(75, 75, 3); add(225, 75, 2);
-  add(-225, 225, 1); add(-75, 225, 0); add(75, 225, 2); add(225, 225, 4);
-
-  // BORDAS (4 construções nas extremidades)
-  add(-350, -150, 3); add(-350, 150, 4); add(350, -150, 4); add(350, 150, 4);
+  // BORDAS EXTERNAS (20 construções cobrindo -375 a 375)
+  // Coluna esquerda x=-375
+  add(-375, -300, 3); add(-375, -100, 1); add(-375, 100, 0); add(-375, 300, 4);
+  // Coluna direita x=375
+  add(375, -300, 4); add(375, -100, 0); add(375, 100, 1); add(375, 300, 3);
+  // Canto superior z=-375
+  add(-200, -375, 1); add(-50, -375, 0); add(50, -375, 2); add(200, -375, 1);
+  // Canto inferior z=375
+  add(-200, 375, 0); add(-50, 375, 1); add(50, 375, 3); add(200, 375, 0);
+  // Cantos extremos
+  add(-375, -375, 3); add(-375, 375, 2); add(375, -375, 2); add(375, 375, 4);
 }
 
 spawnVehicles();
