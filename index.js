@@ -390,6 +390,7 @@ const ROUND_TIME = 120;
 const COLOR_CHANGE_COOLDOWN = 3;
 
 const hnsRooms = new Map();
+const hnsSocketToRoom = new Map();
 
 function hnsGenerateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -536,6 +537,7 @@ hns.on('connection', (socket) => {
     }
 
     socket.join(data.code);
+    hnsSocketToRoom.set(socket.id, data.code);
     socket.emit('room_joined', {
       code: data.code,
       room: { ...room, players: room.players.map(p => ({ ...p })), map: room.map },
@@ -547,7 +549,7 @@ hns.on('connection', (socket) => {
   socket.on('start_game', (data) => {
     const room = hnsRooms.get(data.code);
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    const isHost = room.players[0]?.id === socket.id;
+    const isHost = room.host === socket.id;
     if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
     if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
 
@@ -602,24 +604,30 @@ hns.on('connection', (socket) => {
   });
 
   socket.on('position', (data) => {
-    const room = hnsRooms.get(data.code);
+    const code = hnsSocketToRoom.get(socket.id);
+    if (!code) return;
+    const room = hnsRooms.get(code);
     if (!room) return;
     const p = room.players.find(pl => pl.id === socket.id);
     if (p) { p.x = data.x; p.y = data.y; p.z = data.z; p.rotation = data.rotation; }
   });
 
   socket.on('color_change', (data) => {
-    const room = hnsRooms.get(data.code);
+    const code = hnsSocketToRoom.get(socket.id);
+    if (!code) return;
+    const room = hnsRooms.get(code);
     if (!room || room.status !== 'playing') return;
     const p = room.players.find(pl => pl.id === socket.id);
     if (!p || p.isSeeker || !p.isAlive || p.colorChangeCooldown > 0) return;
     p.currentColor = data.color;
     p.colorChangeCooldown = COLOR_CHANGE_COOLDOWN;
-    hns.to(data.code).emit('player_color_change', { id: socket.id, color: data.color });
+    hns.to(code).emit('player_color_change', { id: socket.id, color: data.color });
   });
 
   socket.on('tag', (data) => {
-    const room = hnsRooms.get(data.code);
+    const code = hnsSocketToRoom.get(socket.id);
+    if (!code) return;
+    const room = hnsRooms.get(code);
     if (!room || room.status !== 'playing') return;
     const seeker = room.players.find(p => p.id === socket.id);
     if (!seeker || !seeker.isSeeker) return;
@@ -633,8 +641,8 @@ hns.on('connection', (socket) => {
     room.seekers.push(hider.id);
     hider.isSeeker = true; hider.color = SEEKER_COLOR; hider.currentColor = SEEKER_COLOR;
 
-    hns.to(data.code).emit('player_tagged', { taggedId: hider.id, taggerId: socket.id });
-    hns.to(data.code).emit('players_update', room.players.map(p => ({ ...p })));
+    hns.to(code).emit('player_tagged', { taggedId: hider.id, taggerId: socket.id });
+    hns.to(code).emit('players_update', room.players.map(p => ({ ...p })));
     const aliveHiders = room.hiders.filter(id => { const p = room.players.find(pl => pl.id === id); return p && p.isAlive; });
     if (aliveHiders.length === 0) hnsEndRound(room, data.code);
   });
@@ -645,6 +653,7 @@ hns.on('connection', (socket) => {
     for (const [code, room] of hnsRooms) {
       if (room.players.find(p => p.id === socket.id)) { hnsLeaveRoom(socket, code); break; }
     }
+    hnsSocketToRoom.delete(socket.id);
   });
 });
 
@@ -655,6 +664,7 @@ function hnsLeaveRoom(socket, code) {
   room.seekers = room.seekers.filter(id => id !== socket.id);
   room.hiders = room.hiders.filter(id => id !== socket.id);
   delete room.scores[socket.id];
+  hnsSocketToRoom.delete(socket.id);
   if (room.players.length === 0) { hnsRooms.delete(code); return; }
   if (room.host === socket.id) room.host = room.players[0]?.id || null;
   socket.leave(code);
