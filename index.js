@@ -741,7 +741,7 @@ function hnsEndRound(room, code) {
   }
 }
 
-// ===== CS SERVER =====
+// ===== CS SERVER (single global match) =====
 const CS_ROUND_TIME = 300;
 const CS_MAX_ROUNDS = 15;
 const CS_TICK_RATE = 20;
@@ -753,121 +753,94 @@ const WEAPONS_CS = {
   knife: { damage: 40, headMultiplier: 1.0, fireRate: 500, range: 3 },
 };
 
-const csRooms = new Map();
-const csSocketToRoom = new Map();
-const csPendingDeletes = new Map();
-
-function csGenerateCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function csCreateRoom(code, hostId, hostNickname, team) {
-  return {
-    code,
-    host: hostId,
-    hostNickname,
-    phase: 'waiting',
-    timeLeft: CS_ROUND_TIME,
-    ctScore: 0,
-    tScore: 0,
-    round: 0,
-    maxRounds: CS_MAX_ROUNDS,
-    players: [],
-    killfeed: [],
-    lastTick: Date.now(),
-    tickInterval: null,
-  };
-}
+const csMatch = {
+  phase: 'waiting',
+  timeLeft: CS_ROUND_TIME,
+  ctScore: 0,
+  tScore: 0,
+  round: 0,
+  maxRounds: CS_MAX_ROUNDS,
+  players: [],
+  killfeed: [],
+  lastTick: Date.now(),
+  tickInterval: null,
+};
 
 function csSpawnForTeam(team) {
-  if (team === 'CT') return { x: 45, y: 1.5, z: -35 };
-  return { x: -45, y: 1.5, z: -35 };
+  return team === 'CT' ? { x: 45, y: 1.5, z: -35 } : { x: -45, y: 1.5, z: -35 };
 }
 
 function csGetWeaponForTeam(team) {
   return team === 'CT' ? 'm4a1' : 'ak47';
 }
 
-function csTick(code) {
-  const room = csRooms.get(code);
-  if (!room || room.phase !== 'playing') return;
-
+function csTick() {
+  if (csMatch.phase !== 'playing') return;
   const now = Date.now();
-  const dt = (now - room.lastTick) / 1000;
-  room.lastTick = now;
-
-  room.timeLeft -= dt;
-  if (room.timeLeft <= 0) {
-    csEndRound(room, code, null);
-    return;
-  }
-
-  const ctAlive = room.players.filter(p => p.team === 'CT' && p.isAlive).length;
-  const tAlive = room.players.filter(p => p.team === 'T' && p.isAlive).length;
-
-  if (ctAlive === 0 && room.players.some(p => p.team === 'CT')) {
-    csEndRound(room, code, 'T');
-  } else if (tAlive === 0 && room.players.some(p => p.team === 'T')) {
-    csEndRound(room, code, 'CT');
-  }
-
-  cs.to(code).emit('game_state', {
-    code: room.code,
-    phase: room.phase,
-    timeLeft: Math.ceil(room.timeLeft),
-    ctScore: room.ctScore,
-    tScore: room.tScore,
-    players: room.players.map(p => ({ ...p })),
-    round: room.round,
-    maxRounds: room.maxRounds,
+  const dt = (now - csMatch.lastTick) / 1000;
+  csMatch.lastTick = now;
+  csMatch.timeLeft -= dt;
+  if (csMatch.timeLeft <= 0) { csEndRound(null); return; }
+  const ctAlive = csMatch.players.filter(p => p.team === 'CT' && p.isAlive).length;
+  const tAlive = csMatch.players.filter(p => p.team === 'T' && p.isAlive).length;
+  if (ctAlive === 0 && csMatch.players.some(p => p.team === 'CT')) csEndRound('T');
+  else if (tAlive === 0 && csMatch.players.some(p => p.team === 'T')) csEndRound('CT');
+  cs.emit('game_state', {
+    phase: csMatch.phase,
+    timeLeft: Math.ceil(csMatch.timeLeft),
+    ctScore: csMatch.ctScore,
+    tScore: csMatch.tScore,
+    players: csMatch.players.map(p => ({ ...p })),
+    round: csMatch.round,
+    maxRounds: csMatch.maxRounds,
   });
 }
 
-function csEndRound(room, code, winner) {
-  if (winner === 'CT') room.ctScore++;
-  else if (winner === 'T') room.tScore++;
-
-  room.phase = 'round_end';
-  cs.to(code).emit('round_end', {
-    ctScore: room.ctScore,
-    tScore: room.tScore,
-    round: room.round,
-    winner,
-  });
-
-  if (room.round >= room.maxRounds || room.ctScore >= Math.ceil(CS_MAX_ROUNDS / 2) + 1 || room.tScore >= Math.ceil(CS_MAX_ROUNDS / 2) + 1) {
+function csEndRound(winner) {
+  if (winner === 'CT') csMatch.ctScore++;
+  else if (winner === 'T') csMatch.tScore++;
+  csMatch.phase = 'round_end';
+  cs.emit('round_end', { ctScore: csMatch.ctScore, tScore: csMatch.tScore, round: csMatch.round, winner });
+  if (csMatch.round >= csMatch.maxRounds || csMatch.ctScore >= Math.ceil(CS_MAX_ROUNDS / 2) + 1 || csMatch.tScore >= Math.ceil(CS_MAX_ROUNDS / 2) + 1) {
     setTimeout(() => {
-      room.phase = 'waiting';
-      room.round = 0;
-      room.ctScore = 0;
-      room.tScore = 0;
-      cs.to(code).emit('match_end', { ctScore: room.ctScore, tScore: room.tScore });
-      for (const p of room.players) {
-        p.kills = 0;
-        p.deaths = 0;
-        const spawn = csSpawnForTeam(p.team);
-        p.x = spawn.x; p.y = spawn.y; p.z = spawn.z;
-        p.health = 100; p.armor = 0; p.isAlive = true;
-        p.weapon = csGetWeaponForTeam(p.team);
-      }
-      cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
+      csMatch.phase = 'waiting'; csMatch.round = 0; csMatch.ctScore = 0; csMatch.tScore = 0;
+      cs.emit('match_end', { ctScore: 0, tScore: 0 });
+      csResetPlayers();
+      cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
     }, 4000);
   } else {
     setTimeout(() => {
-      room.round++;
-      room.phase = 'playing';
-      room.timeLeft = CS_ROUND_TIME;
-      for (const p of room.players) {
-        const spawn = csSpawnForTeam(p.team);
-        p.x = spawn.x; p.y = spawn.y; p.z = spawn.z;
-        p.health = 100; p.armor = 0; p.isAlive = true;
-        p.weapon = csGetWeaponForTeam(p.team);
-      }
-      cs.to(code).emit('countdown', { seconds: 3 });
-      setTimeout(() => {
-        cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
-      }, 3000);
+      csMatch.round++; csMatch.phase = 'playing'; csMatch.timeLeft = CS_ROUND_TIME;
+      csResetPlayers();
+      cs.emit('countdown', { seconds: 3 });
+      setTimeout(() => cs.emit('players_update', csMatch.players.map(p => ({ ...p }))), 3000);
     }, 4000);
+  }
+}
+
+function csResetPlayers() {
+  for (const p of csMatch.players) {
+    const spawn = csSpawnForTeam(p.team);
+    p.x = spawn.x; p.y = spawn.y; p.z = spawn.z;
+    p.health = 100; p.armor = 0; p.isAlive = true;
+    p.weapon = csGetWeaponForTeam(p.team); p.kills = 0; p.deaths = 0;
+  }
+}
+
+function csAutoStart() {
+  const ctCount = csMatch.players.filter(p => p.team === 'CT').length;
+  const tCount = csMatch.players.filter(p => p.team === 'T').length;
+  if (csMatch.phase === 'waiting' && ctCount >= 1 && tCount >= 1) {
+    csMatch.round = 1; csMatch.phase = 'playing'; csMatch.timeLeft = CS_ROUND_TIME;
+    csMatch.ctScore = 0; csMatch.tScore = 0; csMatch.lastTick = Date.now();
+    csResetPlayers();
+    cs.emit('countdown', { seconds: 3 });
+    setTimeout(() => {
+      cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+      if (csMatch.tickInterval) clearInterval(csMatch.tickInterval);
+      csMatch.tickInterval = setInterval(csTick, 1000 / CS_TICK_RATE);
+    }, 3000);
+    console.log('CS match auto-started');
   }
 }
 
@@ -875,52 +848,17 @@ cs.on('connection', (socket) => {
   const nickname = (socket.handshake.auth?.nickname || 'Player').slice(0, 16);
   console.log(`CS connected: ${socket.id} (${nickname})`);
 
-  socket.on('create_room', (data) => {
-    const code = csGenerateCode();
+  socket.on('join_match', (data) => {
     const team = data.team || 'CT';
-    const room = csCreateRoom(code, socket.id, nickname, team);
-    const spawn = csSpawnForTeam(team);
-    const weapon = csGetWeaponForTeam(team);
-    room.players.push({
-      id: socket.id, nickname, team,
-      x: spawn.x, y: spawn.y, z: spawn.z,
-      yaw: 0, pitch: 0, health: 100, armor: 0,
-      weapon, ammo: 30, isAlive: true,
-      kills: 0, deaths: 0, ping: 0,
-    });
-    csRooms.set(code, room);
-    socket.join(code);
-    csSocketToRoom.set(socket.id, code);
-    socket.emit('room_created', { code });
-    socket.emit('room_joined', {
-      room: { ...room, players: room.players.map(p => ({ ...p })) },
-      playerId: socket.id,
-    });
-    console.log(`CS room created: ${code} by ${nickname}`);
-  });
-
-  socket.on('join_room', (data) => {
-    const room = csRooms.get(data.code);
-    if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    if (room.phase !== 'waiting') return socket.emit('error_msg', 'Jogo ja comecou');
-    if (room.players.length >= 10) return socket.emit('error_msg', 'Sala cheia (max 10)');
-
-    if (csPendingDeletes.has(data.code)) {
-      clearTimeout(csPendingDeletes.get(data.code));
-      csPendingDeletes.delete(data.code);
-    }
-
-    const team = data.team || 'CT';
-    const existingIdx = room.players.findIndex(p => p.nickname === nickname);
+    const existingIdx = csMatch.players.findIndex(p => p.nickname === nickname);
     if (existingIdx >= 0) {
-      const old = room.players[existingIdx];
-      csSocketToRoom.delete(old.id);
+      const old = csMatch.players[existingIdx];
       old.id = socket.id;
       old.team = team;
     } else {
       const spawn = csSpawnForTeam(team);
       const weapon = csGetWeaponForTeam(team);
-      room.players.push({
+      csMatch.players.push({
         id: socket.id, nickname, team,
         x: spawn.x, y: spawn.y, z: spawn.z,
         yaw: 0, pitch: 0, health: 100, armor: 0,
@@ -928,193 +866,54 @@ cs.on('connection', (socket) => {
         kills: 0, deaths: 0, ping: 0,
       });
     }
-
-    socket.join(data.code);
-    csSocketToRoom.set(socket.id, data.code);
-    socket.emit('room_joined', {
-      room: { ...room, players: room.players.map(p => ({ ...p })) },
+    socket.join('cs_global');
+    socket.emit('match_joined', {
       playerId: socket.id,
+      match: { phase: csMatch.phase, timeLeft: Math.ceil(csMatch.timeLeft), ctScore: csMatch.ctScore, tScore: csMatch.tScore, round: csMatch.round, maxRounds: csMatch.maxRounds },
+      players: csMatch.players.map(p => ({ ...p })),
     });
-    cs.to(data.code).emit('players_update', room.players.map(p => ({ ...p })));
-    console.log(`CS join_room: ${data.code} players=${room.players.length}`);
-  });
-
-  socket.on('start_game', (data) => {
-    const code = data?.code || csSocketToRoom.get(socket.id);
-    const room = code ? csRooms.get(code) : null;
-    if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    if (room.host !== socket.id) return socket.emit('error_msg', 'Apenas o host pode iniciar');
-    if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
-    if (room.phase !== 'waiting') return socket.emit('error_msg', 'Jogo ja comecou');
-
-    room.round = 1;
-    room.phase = 'playing';
-    room.timeLeft = CS_ROUND_TIME;
-    room.ctScore = 0;
-    room.tScore = 0;
-    room.lastTick = Date.now();
-
-    for (const p of room.players) {
-      const spawn = csSpawnForTeam(p.team);
-      p.x = spawn.x; p.y = spawn.y; p.z = spawn.z;
-      p.health = 100; p.armor = 0; p.isAlive = true;
-      p.weapon = csGetWeaponForTeam(p.team);
-      p.kills = 0; p.deaths = 0;
-    }
-
-    cs.to(code).emit('countdown', { seconds: 3 });
-    setTimeout(() => {
-      cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
-      if (room.tickInterval) clearInterval(room.tickInterval);
-      room.tickInterval = setInterval(() => csTick(code), 1000 / CS_TICK_RATE);
-    }, 3000);
-    console.log(`CS game started in room ${code}`);
+    cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+    csAutoStart();
+    console.log(`CS join_match: ${nickname} team=${team} players=${csMatch.players.length}`);
   });
 
   socket.on('player_state', (data) => {
-    const code = csSocketToRoom.get(socket.id);
-    if (!code) return;
-    const room = csRooms.get(code);
-    if (!room) return;
-    const p = room.players.find(pl => pl.id === socket.id);
+    const p = csMatch.players.find(pl => pl.id === socket.id);
     if (p) {
-      p.x = data.x ?? p.x;
-      p.y = data.y ?? p.y;
-      p.z = data.z ?? p.z;
-      p.yaw = data.yaw ?? p.yaw;
-      p.pitch = data.pitch ?? p.pitch;
-      p.health = data.health ?? p.health;
-      p.armor = data.armor ?? p.armor;
-      p.weapon = data.weapon ?? p.weapon;
-      p.isAlive = data.isAlive ?? p.isAlive;
+      p.x = data.x ?? p.x; p.y = data.y ?? p.y; p.z = data.z ?? p.z;
+      p.yaw = data.yaw ?? p.yaw; p.pitch = data.pitch ?? p.pitch;
+      p.health = data.health ?? p.health; p.armor = data.armor ?? p.armor;
+      p.weapon = data.weapon ?? p.weapon; p.isAlive = data.isAlive ?? p.isAlive;
     }
   });
 
   socket.on('shoot', (data) => {
-    const code = csSocketToRoom.get(socket.id);
-    if (!code) return;
-    const room = csRooms.get(code);
-    if (!room || room.phase !== 'playing') return;
-    const shooter = room.players.find(p => p.id === socket.id);
+    if (csMatch.phase !== 'playing') return;
+    const shooter = csMatch.players.find(p => p.id === socket.id);
     if (!shooter || !shooter.isAlive) return;
-
     const weaponDef = WEAPONS_CS[data.weapon] || WEAPONS_CS.knife;
-    cs.to(code).emit('bullet', {
-      id: uuidv4(),
-      ownerId: socket.id,
-      x: data.x, y: data.y, z: data.z,
-      dx: data.dx, dy: data.dy, dz: data.dz,
-      weapon: data.weapon,
-    });
-
-    if (data.hitId && data.weapon !== 'knife') {
-      const victim = room.players.find(p => p.id === data.hitId);
+    cs.emit('bullet', { id: uuidv4(), ownerId: socket.id, x: data.x, y: data.y, z: data.z, dx: data.dx, dy: data.dy, dz: data.dz, weapon: data.weapon });
+    if (data.hitId) {
+      const victim = csMatch.players.find(p => p.id === data.hitId);
       if (victim && victim.isAlive && victim.team !== shooter.team) {
-        let dmg = weaponDef.damage;
-        const isHeadshot = false;
+        const dmg = data.weapon === 'knife' ? weaponDef.damage : weaponDef.damage;
         victim.health -= dmg;
         if (victim.health <= 0) {
-          victim.health = 0;
-          victim.isAlive = false;
-          victim.deaths++;
-          shooter.kills++;
-          const killEvent = {
-            killer: shooter.nickname,
-            victim: victim.nickname,
-            weapon: data.weapon,
-            headshot: isHeadshot,
-          };
-          room.killfeed.unshift(killEvent);
-          if (room.killfeed.length > 10) room.killfeed.pop();
-          cs.to(code).emit('killfeed', killEvent);
-          cs.to(code).emit('player_died', {
-            victimId: victim.id,
-            killerId: shooter.id,
-            headshot: isHeadshot,
-          });
-          cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
-        }
-      }
-    } else if (data.weapon === 'knife' && data.hitId) {
-      const victim = room.players.find(p => p.id === data.hitId);
-      if (victim && victim.isAlive && victim.team !== shooter.team) {
-        victim.health -= weaponDef.damage;
-        if (victim.health <= 0) {
-          victim.health = 0;
-          victim.isAlive = false;
-          victim.deaths++;
-          shooter.kills++;
-          cs.to(code).emit('killfeed', {
-            killer: shooter.nickname, victim: victim.nickname,
-            weapon: 'knife', headshot: false,
-          });
-          cs.to(code).emit('player_died', {
-            victimId: victim.id, killerId: shooter.id, headshot: false,
-          });
-          cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
+          victim.health = 0; victim.isAlive = false; victim.deaths++; shooter.kills++;
+          const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: false };
+          csMatch.killfeed.unshift(killEvent);
+          if (csMatch.killfeed.length > 10) csMatch.killfeed.pop();
+          cs.emit('killfeed', killEvent);
+          cs.emit('player_died', { victimId: victim.id, killerId: shooter.id, headshot: false });
+          cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
         }
       }
     }
-  });
-
-  socket.on('leave_room', () => {
-    const code = csSocketToRoom.get(socket.id);
-    if (!code) return;
-    const room = csRooms.get(code);
-    if (!room) return;
-    room.players = room.players.filter(p => p.id !== socket.id);
-    csSocketToRoom.delete(socket.id);
-    socket.leave(code);
-
-    if (room.players.length === 0) {
-      if (!csPendingDeletes.has(code)) {
-        const timer = setTimeout(() => {
-          const r = csRooms.get(code);
-          if (r && r.players.length === 0) {
-            if (r.tickInterval) clearInterval(r.tickInterval);
-            csRooms.delete(code);
-          }
-          csPendingDeletes.delete(code);
-        }, 10000);
-        csPendingDeletes.set(code, timer);
-      }
-      return;
-    }
-
-    if (room.host === socket.id) {
-      room.host = room.players[0]?.id || null;
-    }
-    cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
   });
 
   socket.on('disconnect', () => {
-    const code = csSocketToRoom.get(socket.id);
-    if (!code) return;
-    const room = csRooms.get(code);
-    if (!room) return;
-
-    room.players = room.players.filter(p => p.id !== socket.id);
-    csSocketToRoom.delete(socket.id);
-
-    if (room.players.length === 0) {
-      if (!csPendingDeletes.has(code)) {
-        const timer = setTimeout(() => {
-          const r = csRooms.get(code);
-          if (r && r.players.length === 0) {
-            if (r.tickInterval) clearInterval(r.tickInterval);
-            csRooms.delete(code);
-          }
-          csPendingDeletes.delete(code);
-        }, 10000);
-        csPendingDeletes.set(code, timer);
-      }
-      return;
-    }
-
-    if (room.host === socket.id) {
-      room.host = room.players[0]?.id || null;
-    }
-    cs.to(code).emit('players_update', room.players.map(p => ({ ...p })));
+    csMatch.players = csMatch.players.filter(p => p.id !== socket.id);
+    cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
     console.log(`CS disconnected: ${socket.id}`);
   });
 });
