@@ -538,7 +538,7 @@ hns.on('connection', (socket) => {
   socket.on('start_game', (data) => {
     const room = hnsRooms.get(data.code);
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    const isHost = room.host === socket.id || room.players[0]?.id === socket.id;
+    const isHost = room.players[0]?.id === socket.id;
     if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
     if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
 
