@@ -849,66 +849,74 @@ cs.on('connection', (socket) => {
   console.log(`CS connected: ${socket.id} (${nickname})`);
 
   socket.on('join_match', (data) => {
-    const team = data.team || 'CT';
-    const existingIdx = csMatch.players.findIndex(p => p.nickname === nickname);
-    if (existingIdx >= 0) {
-      const old = csMatch.players[existingIdx];
-      old.id = socket.id;
-      old.team = team;
-    } else {
-      const spawn = csSpawnForTeam(team);
-      const weapon = csGetWeaponForTeam(team);
-      csMatch.players.push({
-        id: socket.id, nickname, team,
-        x: spawn.x, y: spawn.y, z: spawn.z,
-        yaw: 0, pitch: 0, health: 100, armor: 0,
-        weapon, ammo: 30, isAlive: true,
-        kills: 0, deaths: 0, ping: 0,
+    try {
+      const team = (data && data.team) || 'CT';
+      const existingIdx = csMatch.players.findIndex(p => p.nickname === nickname);
+      if (existingIdx >= 0) {
+        const old = csMatch.players[existingIdx];
+        old.id = socket.id;
+        old.team = team;
+      } else {
+        const spawn = csSpawnForTeam(team);
+        const weapon = csGetWeaponForTeam(team);
+        csMatch.players.push({
+          id: socket.id, nickname, team,
+          x: spawn.x, y: spawn.y, z: spawn.z,
+          yaw: 0, pitch: 0, health: 100, armor: 0,
+          weapon, ammo: 30, isAlive: true,
+          kills: 0, deaths: 0, ping: 0,
+        });
+      }
+      socket.join('cs_global');
+      socket.emit('match_joined', {
+        playerId: socket.id,
+        match: { phase: csMatch.phase, timeLeft: Math.ceil(csMatch.timeLeft), ctScore: csMatch.ctScore, tScore: csMatch.tScore, round: csMatch.round, maxRounds: csMatch.maxRounds },
+        players: csMatch.players.map(p => ({ ...p })),
       });
+      cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+      csAutoStart();
+      console.log(`CS join_match OK: ${nickname} team=${team} players=${csMatch.players.length}`);
+    } catch (err) {
+      console.error('CS join_match ERROR:', err);
     }
-    socket.join('cs_global');
-    socket.emit('match_joined', {
-      playerId: socket.id,
-      match: { phase: csMatch.phase, timeLeft: Math.ceil(csMatch.timeLeft), ctScore: csMatch.ctScore, tScore: csMatch.tScore, round: csMatch.round, maxRounds: csMatch.maxRounds },
-      players: csMatch.players.map(p => ({ ...p })),
-    });
-    cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
-    csAutoStart();
-    console.log(`CS join_match: ${nickname} team=${team} players=${csMatch.players.length}`);
   });
 
   socket.on('player_state', (data) => {
-    const p = csMatch.players.find(pl => pl.id === socket.id);
-    if (p) {
-      p.x = data.x ?? p.x; p.y = data.y ?? p.y; p.z = data.z ?? p.z;
-      p.yaw = data.yaw ?? p.yaw; p.pitch = data.pitch ?? p.pitch;
-      p.health = data.health ?? p.health; p.armor = data.armor ?? p.armor;
-      p.weapon = data.weapon ?? p.weapon; p.isAlive = data.isAlive ?? p.isAlive;
-    }
+    try {
+      const p = csMatch.players.find(pl => pl.id === socket.id);
+      if (p) {
+        p.x = data.x ?? p.x; p.y = data.y ?? p.y; p.z = data.z ?? p.z;
+        p.yaw = data.yaw ?? p.yaw; p.pitch = data.pitch ?? p.pitch;
+        p.health = data.health ?? p.health; p.armor = data.armor ?? p.armor;
+        p.weapon = data.weapon ?? p.weapon; p.isAlive = data.isAlive ?? p.isAlive;
+      }
+    } catch (err) { console.error('CS player_state ERROR:', err); }
   });
 
   socket.on('shoot', (data) => {
-    if (csMatch.phase !== 'playing') return;
-    const shooter = csMatch.players.find(p => p.id === socket.id);
-    if (!shooter || !shooter.isAlive) return;
-    const weaponDef = WEAPONS_CS[data.weapon] || WEAPONS_CS.knife;
-    cs.emit('bullet', { id: uuidv4(), ownerId: socket.id, x: data.x, y: data.y, z: data.z, dx: data.dx, dy: data.dy, dz: data.dz, weapon: data.weapon });
-    if (data.hitId) {
-      const victim = csMatch.players.find(p => p.id === data.hitId);
-      if (victim && victim.isAlive && victim.team !== shooter.team) {
-        const dmg = data.weapon === 'knife' ? weaponDef.damage : weaponDef.damage;
-        victim.health -= dmg;
-        if (victim.health <= 0) {
-          victim.health = 0; victim.isAlive = false; victim.deaths++; shooter.kills++;
-          const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: false };
-          csMatch.killfeed.unshift(killEvent);
-          if (csMatch.killfeed.length > 10) csMatch.killfeed.pop();
-          cs.emit('killfeed', killEvent);
-          cs.emit('player_died', { victimId: victim.id, killerId: shooter.id, headshot: false });
-          cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+    try {
+      if (csMatch.phase !== 'playing') return;
+      const shooter = csMatch.players.find(p => p.id === socket.id);
+      if (!shooter || !shooter.isAlive) return;
+      const weaponDef = WEAPONS_CS[data.weapon] || WEAPONS_CS.knife;
+      cs.emit('bullet', { id: uuidv4(), ownerId: socket.id, x: data.x, y: data.y, z: data.z, dx: data.dx, dy: data.dy, dz: data.dz, weapon: data.weapon });
+      if (data.hitId) {
+        const victim = csMatch.players.find(p => p.id === data.hitId);
+        if (victim && victim.isAlive && victim.team !== shooter.team) {
+          const dmg = data.weapon === 'knife' ? weaponDef.damage : weaponDef.damage;
+          victim.health -= dmg;
+          if (victim.health <= 0) {
+            victim.health = 0; victim.isAlive = false; victim.deaths++; shooter.kills++;
+            const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: false };
+            csMatch.killfeed.unshift(killEvent);
+            if (csMatch.killfeed.length > 10) csMatch.killfeed.pop();
+            cs.emit('killfeed', killEvent);
+            cs.emit('player_died', { victimId: victim.id, killerId: shooter.id, headshot: false });
+            cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+          }
         }
       }
-    }
+    } catch (err) { console.error('CS shoot ERROR:', err); }
   });
 
   socket.on('disconnect', () => {
