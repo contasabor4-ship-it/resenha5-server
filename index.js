@@ -95,6 +95,8 @@ function spawnVehicles() {
       x: s.x, y: 0.5, z: s.z, rotation: s.r,
       speed: 0, maxSpeed: model.maxSpeed, acceleration: model.acceleration,
       handling: model.handling, color: model.color, driver: null, health: 100,
+      dirty: true,
+      lastX: s.x, lastZ: s.z, lastRot: s.r, lastDriver: null,
     });
   }
 }
@@ -145,6 +147,7 @@ function respawnVehicle(vehicle) {
   vehicle.speed = 0;
   vehicle.driver = null;
   vehicle.health = 100;
+  vehicle.dirty = true;
   io.emit('vehicle_update', vehicle);
 }
 
@@ -152,6 +155,7 @@ setInterval(() => {
   for (const v of gtaVehicles) {
     if (!v.driver && v.health < 100) {
       v.health = Math.min(100, v.health + 2);
+      v.dirty = true;
     }
   }
 }, 5000);
@@ -212,6 +216,7 @@ io.on('connection', (socket) => {
     if (!vehicle || vehicle.driver) return;
     if (Math.hypot(player.x - vehicle.x, player.z - vehicle.z) > 6) return;
     vehicle.driver = socket.id;
+    vehicle.dirty = true;
     player.inVehicle = vehicle.id;
     io.emit('vehicle_update', vehicle);
     io.emit('players_update', Array.from(gtaPlayers.values()));
@@ -221,7 +226,7 @@ io.on('connection', (socket) => {
     const player = gtaPlayers.get(socket.id);
     if (!player || !player.inVehicle) return;
     const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
-    if (vehicle) { vehicle.driver = null; vehicle.speed = 0; io.emit('vehicle_update', vehicle); }
+    if (vehicle) { vehicle.driver = null; vehicle.speed = 0; vehicle.dirty = true; io.emit('vehicle_update', vehicle); }
     player.inVehicle = null; player.x += 3;
     io.emit('players_update', Array.from(gtaPlayers.values()));
   });
@@ -231,6 +236,7 @@ io.on('connection', (socket) => {
     if (!vehicle) return;
     vehicle.x = data.x; vehicle.y = data.y; vehicle.z = data.z;
     vehicle.rotation = data.rotation; vehicle.speed = data.speed;
+    vehicle.dirty = true;
   });
 
   socket.on('shoot', (data) => {
@@ -296,7 +302,7 @@ io.on('connection', (socket) => {
     const player = gtaPlayers.get(socket.id);
     if (player && player.inVehicle) {
       const vehicle = gtaVehicles.find(v => v.id === player.inVehicle);
-      if (vehicle) { vehicle.driver = null; io.emit('vehicle_update', vehicle); }
+      if (vehicle) { vehicle.driver = null; vehicle.dirty = true; io.emit('vehicle_update', vehicle); }
     }
     gtaPlayers.delete(socket.id);
     io.emit('players_update', Array.from(gtaPlayers.values()));
@@ -367,7 +373,10 @@ setInterval(() => {
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
 
   for (const v of gtaVehicles) {
-    io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
+    if (v.dirty || v.driver) {
+      io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
+      v.dirty = false;
+    }
   }
 
   io.emit('players_update', Array.from(gtaPlayers.values()));
