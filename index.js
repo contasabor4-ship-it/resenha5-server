@@ -115,22 +115,17 @@ function spawnHouses() {
   };
 
   // 0=Casa 1=Sobrado 2=Predio 3=Galpao 4=Bar
-  // GRID shifted +75 from roads. Roads at x=0, z=-300,-150,150,300
-  // Houses at x,z ∈ {-375, -225, -75, 75, 225, 375}
-
-  // MAIN GRID 5x5
-  add(-225, -225, 2); add(-75, -225, 0); add(75, -225, 1); add(225, -225, 0); add(375, -225, 2);
-  add(-225, -75, 0); add(-75, -75, 1); add(75, -75, 3); add(225, -75, 1); add(375, -75, 0);
-  add(-225, 75, 1); add(-75, 75, 2); add(75, 75, 2); add(225, 75, 1); add(375, 75, 0);
-  add(-225, 225, 0); add(-75, 225, 1); add(75, 225, 3); add(225, 225, 1); add(375, 225, 0);
-  add(-225, 375, 2); add(-75, 375, 0); add(75, 375, 1); add(225, 375, 0); add(375, 375, 2);
-
-  // BORDAS EXTERNAS
-  add(-375, -225, 3); add(-375, -75, 1); add(-375, 75, 0); add(-375, 225, 4);
-  add(375, -225, 4); add(375, -75, 0); add(375, 75, 1); add(375, 225, 3);
-  add(-225, -375, 1); add(-75, -375, 0); add(75, -375, 2); add(225, -375, 1);
-  add(-225, 375, 0); add(-75, 375, 1); add(75, 375, 3); add(225, 375, 0);
-  add(-375, -375, 3); add(-375, 375, 2); add(375, -375, 2); add(375, 375, 4);
+  // 10 houses well spaced around the map
+  add(-250, -250, 2);
+  add(250, -250, 0);
+  add(-250, 250, 0);
+  add(250, 250, 2);
+  add(-250, 0, 1);
+  add(250, 0, 1);
+  add(0, -250, 3);
+  add(0, 250, 3);
+  add(-100, -100, 4);
+  add(100, 100, 4);
 }
 
 spawnVehicles();
@@ -234,6 +229,7 @@ io.on('connection', (socket) => {
     vehicle.x = data.x; vehicle.y = data.y; vehicle.z = data.z;
     vehicle.rotation = data.rotation; vehicle.speed = data.speed;
     vehicle.dirty = true;
+    socket.broadcast.emit('vehicle_update', { id: vehicle.id, x: vehicle.x, y: vehicle.y, z: vehicle.z, rotation: vehicle.rotation, speed: vehicle.speed, color: vehicle.color, model: vehicle.model, driver: vehicle.driver, health: vehicle.health });
   });
 
   socket.on('shoot', (data) => {
@@ -549,7 +545,7 @@ hns.on('connection', (socket) => {
     const code = data.code || hnsSocketToRoom.get(socket.id);
     const room = code ? hnsRooms.get(code) : null;
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    const isHost = room.host === socket.id;
+    const isHost = room.host === socket.id || room.players[0]?.id === socket.id;
     if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
     if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
 
