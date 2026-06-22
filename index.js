@@ -372,12 +372,14 @@ setInterval(() => {
   }
   io.emit('projectiles_update', gtaProjectiles.map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })));
 
+  const dirtyVehicles = [];
   for (const v of gtaVehicles) {
     if (v.dirty || v.driver) {
-      io.emit('vehicle_update', { id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
+      dirtyVehicles.push({ id: v.id, x: v.x, y: v.y, z: v.z, rotation: v.rotation, speed: v.speed, color: v.color, model: v.model, driver: v.driver, health: v.health });
       v.dirty = false;
     }
   }
+  if (dirtyVehicles.length > 0) io.emit('vehicles_batch', dirtyVehicles);
 
   io.emit('players_update', Array.from(gtaPlayers.values()));
 }, 1000 / TICK_RATE);
@@ -547,7 +549,8 @@ hns.on('connection', (socket) => {
   });
 
   socket.on('start_game', (data) => {
-    const room = hnsRooms.get(data.code);
+    const code = data.code || hnsSocketToRoom.get(socket.id);
+    const room = code ? hnsRooms.get(code) : null;
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
     const isHost = room.host === socket.id;
     if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
