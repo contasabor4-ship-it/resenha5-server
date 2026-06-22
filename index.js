@@ -115,17 +115,17 @@ function spawnHouses() {
   };
 
   // 0=Casa 1=Sobrado 2=Predio 3=Galpao 4=Bar
-  // 10 houses well spaced around the map
-  add(-250, -250, 2);
-  add(250, -250, 0);
-  add(-250, 250, 0);
-  add(250, 250, 2);
-  add(-250, 0, 1);
-  add(250, 0, 1);
-  add(0, -250, 3);
-  add(0, 250, 3);
-  add(-100, -100, 4);
-  add(100, 100, 4);
+  // 10 houses spread very far apart
+  add(-350, -350, 2);
+  add(350, -350, 0);
+  add(-350, 350, 0);
+  add(350, 350, 2);
+  add(-350, 0, 1);
+  add(350, 0, 1);
+  add(0, -350, 3);
+  add(0, 350, 3);
+  add(-180, -180, 4);
+  add(180, 180, 4);
 }
 
 spawnVehicles();
@@ -229,7 +229,8 @@ io.on('connection', (socket) => {
     vehicle.x = data.x; vehicle.y = data.y; vehicle.z = data.z;
     vehicle.rotation = data.rotation; vehicle.speed = data.speed;
     vehicle.dirty = true;
-    socket.broadcast.emit('vehicle_update', { id: vehicle.id, x: vehicle.x, y: vehicle.y, z: vehicle.z, rotation: vehicle.rotation, speed: vehicle.speed, color: vehicle.color, model: vehicle.model, driver: vehicle.driver, health: vehicle.health });
+    const vd = { id: vehicle.id, x: vehicle.x, y: vehicle.y, z: vehicle.z, rotation: vehicle.rotation, speed: vehicle.speed, color: vehicle.color, model: vehicle.model, driver: vehicle.driver, health: vehicle.health };
+    socket.broadcast.emit('vehicle_update', vd);
   });
 
   socket.on('shoot', (data) => {
@@ -386,6 +387,7 @@ const COLOR_CHANGE_COOLDOWN = 3;
 
 const hnsRooms = new Map();
 const hnsSocketToRoom = new Map();
+const hnsPendingDeletes = new Map();
 
 function hnsGenerateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -506,29 +508,51 @@ hns.on('connection', (socket) => {
   socket.on('create_room', () => {
     const code = hnsGenerateCode();
     hnsRooms.set(code, {
-      code, host: null, players: [], status: 'lobby', map: generateHnsMap(),
+      code, host: null, hostNickname: null, players: [], status: 'lobby', map: generateHnsMap(),
       seekers: [], hiders: [], prepTimeLeft: PREP_TIME, roundTimeLeft: ROUND_TIME,
       round: 0, maxRounds: 3, scores: {},
     });
     socket.emit('room_created', { code });
+    console.log(`HNS room created: ${code}`);
   });
 
   socket.on('join_room', (data) => {
     const room = hnsRooms.get(data.code);
-    if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
+    if (!room) {
+      console.log(`HNS join_room FAIL: room ${data.code} not found`);
+      return socket.emit('error_msg', 'Sala nao encontrada');
+    }
     if (room.status !== 'lobby') return socket.emit('error_msg', 'Jogo ja comecou');
     if (room.players.length >= 16) return socket.emit('error_msg', 'Sala cheia');
 
-    if (!room.players.find(p => p.id === socket.id)) {
+    if (hnsPendingDeletes.has(data.code)) {
+      clearTimeout(hnsPendingDeletes.get(data.code));
+      hnsPendingDeletes.delete(data.code);
+      console.log(`HNS cancelled pending delete for room ${data.code}`);
+    }
+
+    const nickname = (data.nickname || 'Player').slice(0, 16);
+    const existingIdx = room.players.findIndex(p => p.nickname === nickname);
+
+    if (existingIdx >= 0) {
+      const old = room.players[existingIdx];
+      hnsSocketToRoom.delete(old.id);
+      if (room.host === old.id) room.host = socket.id;
+      old.id = socket.id;
+      console.log(`HNS reconnected: ${nickname} ${old.id} -> ${socket.id}`);
+    } else {
       const color = HIDER_COLORS[room.players.length % HIDER_COLORS.length];
       room.players.push({
-        id: socket.id, nickname: (data.nickname || 'Player').slice(0, 16),
+        id: socket.id, nickname,
         x: (Math.random() - 0.5) * HNS_MAP_SIZE * 0.6, y: 1,
         z: (Math.random() - 0.5) * HNS_MAP_SIZE * 0.6,
         color, currentColor: color, isSeeker: false, isAlive: true, colorChangeCooldown: 0,
       });
       room.scores[socket.id] = 0;
-      if (room.host === null) room.host = socket.id;
+      if (room.host === null) {
+        room.host = socket.id;
+        room.hostNickname = nickname;
+      }
     }
 
     socket.join(data.code);
@@ -539,13 +563,15 @@ hns.on('connection', (socket) => {
       playerId: socket.id,
     });
     hns.to(data.code).emit('players_update', room.players.map(p => ({ ...p })));
+    console.log(`HNS join_room OK: ${data.code} players=${room.players.length} host=${room.host}`);
   });
 
   socket.on('start_game', (data) => {
     const code = data.code || hnsSocketToRoom.get(socket.id);
     const room = code ? hnsRooms.get(code) : null;
+    console.log(`HNS start_game: code=${code}, socket=${socket.id}, room=${!!room}, host=${room?.host}, hostNick=${room?.hostNickname}`);
     if (!room) return socket.emit('error_msg', 'Sala nao encontrada');
-    const isHost = room.host === socket.id || room.players[0]?.id === socket.id;
+    const isHost = room.host === socket.id || room.hostNickname === (data.nickname || '') || room.players[0]?.id === socket.id;
     if (!isHost) return socket.emit('error_msg', 'Apenas o host pode iniciar');
     if (room.players.length < 2) return socket.emit('error_msg', 'Precisa de pelo menos 2 jogadores');
 
@@ -661,8 +687,27 @@ function hnsLeaveRoom(socket, code) {
   room.hiders = room.hiders.filter(id => id !== socket.id);
   delete room.scores[socket.id];
   hnsSocketToRoom.delete(socket.id);
-  if (room.players.length === 0) { hnsRooms.delete(code); return; }
-  if (room.host === socket.id) room.host = room.players[0]?.id || null;
+  if (room.players.length === 0) {
+    if (!hnsPendingDeletes.has(code)) {
+      console.log(`HNS scheduling room ${code} delete in 10s`);
+      const timer = setTimeout(() => {
+        const r = hnsRooms.get(code);
+        if (r && r.players.length === 0) {
+          hnsRooms.delete(code);
+          console.log(`HNS room ${code} deleted (empty after grace period)`);
+        }
+        hnsPendingDeletes.delete(code);
+      }, 10000);
+      hnsPendingDeletes.set(code, timer);
+    }
+    socket.leave(code);
+    return;
+  }
+  if (room.host === socket.id) {
+    const newHost = room.players[0];
+    room.host = newHost?.id || null;
+    room.hostNickname = newHost?.nickname || null;
+  }
   socket.leave(code);
   hns.to(code).emit('players_update', room.players.map(p => ({ ...p })));
 }
