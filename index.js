@@ -747,10 +747,10 @@ const CS_MAX_ROUNDS = 15;
 const CS_TICK_RATE = 20;
 
 const WEAPONS_CS = {
-  ak47: { damage: 36, headMultiplier: 4.0, fireRate: 100, range: 80 },
-  m4a1: { damage: 33, headMultiplier: 4.0, fireRate: 90, range: 80 },
-  deagle: { damage: 63, headMultiplier: 4.0, fireRate: 400, range: 60 },
-  knife: { damage: 40, headMultiplier: 1.0, fireRate: 500, range: 3 },
+  ak47: { damage: 36, headMultiplier: 4.0, fireRate: 100, range: 80, ammo: 30 },
+  m4a1: { damage: 33, headMultiplier: 4.0, fireRate: 90, range: 80, ammo: 30 },
+  deagle: { damage: 63, headMultiplier: 4.0, fireRate: 400, range: 60, ammo: 7 },
+  knife: { damage: 40, headMultiplier: 1.0, fireRate: 500, range: 3, ammo: 999 },
 };
 
 const csMatch = {
@@ -799,6 +799,7 @@ function csTick() {
 }
 
 function csEndRound(winner) {
+  if (csMatch.phase === 'round_end') return;
   if (winner === 'CT') csMatch.ctScore++;
   else if (winner === 'T') csMatch.tScore++;
   csMatch.phase = 'round_end';
@@ -821,11 +822,14 @@ function csEndRound(winner) {
 }
 
 function csResetPlayers() {
+  csMatch.killfeed = [];
   for (const p of csMatch.players) {
     const spawn = csSpawnForTeam(p.team);
+    const weapon = csGetWeaponForTeam(p.team);
     p.x = spawn.x; p.y = spawn.y; p.z = spawn.z;
     p.health = 100; p.armor = 0; p.isAlive = true;
-    p.weapon = csGetWeaponForTeam(p.team); p.kills = 0; p.deaths = 0;
+    p.weapon = weapon; p.ammo = WEAPONS_CS[weapon].ammo || 30;
+    p.kills = 0; p.deaths = 0;
   }
 }
 
@@ -868,7 +872,7 @@ cs.on('connection', (socket) => {
           id: socket.id, nickname, team,
           x: spawn.x, y: spawn.y, z: spawn.z,
           yaw: 0, pitch: 0, health: 100, armor: 0,
-          weapon, ammo: 30, isAlive: true,
+          weapon, ammo: WEAPONS_CS[weapon].ammo, isAlive: true,
           kills: 0, deaths: 0, ping: 0,
         });
       }
@@ -892,8 +896,7 @@ cs.on('connection', (socket) => {
       if (p) {
         p.x = data.x ?? p.x; p.y = data.y ?? p.y; p.z = data.z ?? p.z;
         p.yaw = data.yaw ?? p.yaw; p.pitch = data.pitch ?? p.pitch;
-        p.health = data.health ?? p.health; p.armor = data.armor ?? p.armor;
-        p.weapon = data.weapon ?? p.weapon; p.isAlive = data.isAlive ?? p.isAlive;
+        p.weapon = data.weapon ?? p.weapon;
       }
     } catch (err) { console.error('CS player_state ERROR:', err); }
   });
@@ -904,24 +907,38 @@ cs.on('connection', (socket) => {
       const shooter = csMatch.players.find(p => p.id === socket.id);
       if (!shooter || !shooter.isAlive) return;
       const weaponDef = WEAPONS_CS[data.weapon] || WEAPONS_CS.knife;
+
+      if (data.weapon !== 'knife') {
+        if (shooter.ammo <= 0) return;
+        shooter.ammo--;
+      }
+
+      const isHeadshot = data.hitY !== undefined && data.hitY > 0 && data.hitId;
+      const dmgMultiplier = isHeadshot ? weaponDef.headMultiplier : 1;
+      const dmg = Math.round(weaponDef.damage * dmgMultiplier);
+
       cs.emit('bullet', { id: uuidv4(), ownerId: socket.id, x: data.x, y: data.y, z: data.z, dx: data.dx, dy: data.dy, dz: data.dz, weapon: data.weapon });
+
       if (data.hitId) {
         const victim = csMatch.players.find(p => p.id === data.hitId);
         if (victim && victim.isAlive && victim.team !== shooter.team) {
-          const dmg = data.weapon === 'knife' ? weaponDef.damage : weaponDef.damage;
           victim.health -= dmg;
-          const hitX = victim.x;
-          const hitY = victim.y + 1.2;
-          const hitZ = victim.z;
-          socket.emit('hit_effect', { x: hitX, y: hitY, z: hitZ, headshot: false, damage: dmg });
+          if (victim.health < 0) victim.health = 0;
+
+          const hitX = data.x + data.dx * 10;
+          const hitY = data.y + data.dy * 10;
+          const hitZ = data.z + data.dz * 10;
+          socket.emit('hit_effect', { x: hitX, y: hitY, z: hitZ, headshot: isHeadshot, damage: dmg });
+
+          cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+
           if (victim.health <= 0) {
-            victim.health = 0; victim.isAlive = false; victim.deaths++; shooter.kills++;
-            const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: false };
+            victim.isAlive = false; victim.deaths++; shooter.kills++;
+            const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: isHeadshot };
             csMatch.killfeed.unshift(killEvent);
             if (csMatch.killfeed.length > 10) csMatch.killfeed.pop();
             cs.emit('killfeed', killEvent);
-            cs.emit('player_died', { victimId: victim.id, killerId: shooter.id, headshot: false });
-            cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
+            cs.emit('player_died', { victimId: victim.id, killerId: shooter.id, headshot: isHeadshot });
           }
         }
       }
