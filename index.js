@@ -928,7 +928,7 @@ cs.on('connection', (socket) => {
           const hitX = data.x + data.dx * 10;
           const hitY = data.y + data.dy * 10;
           const hitZ = data.z + data.dz * 10;
-          socket.emit('hit_effect', { x: hitX, y: hitY, z: hitZ, headshot: isHeadshot, damage: dmg });
+          cs.emit('hit_effect', { x: hitX, y: hitY, z: hitZ, headshot: isHeadshot, damage: dmg, targetId: victim.id });
 
           cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
 
