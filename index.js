@@ -767,7 +767,7 @@ const csMatch = {
 };
 
 function csSpawnForTeam(team) {
-  return team === 'CT' ? { x: 45, y: 1.5, z: -35 } : { x: -45, y: 1.5, z: -35 };
+  return team === 'CT' ? { x: 0, y: 2, z: 0 } : { x: 0, y: 2, z: -5 };
 }
 
 function csGetWeaponForTeam(team) {
