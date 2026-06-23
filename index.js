@@ -787,8 +787,6 @@ function csTick() {
   const tAlive = csMatch.players.filter(p => p.team === 'T' && p.isAlive).length;
   if (ctAlive === 0 && csMatch.players.some(p => p.team === 'CT')) csEndRound('T');
   else if (tAlive === 0 && csMatch.players.some(p => p.team === 'T')) csEndRound('CT');
-  const playersData = csMatch.players.map(p => ({ ...p }));
-  cs.emit('players_update', playersData);
   cs.emit('game_state', {
     phase: csMatch.phase,
     timeLeft: Math.ceil(csMatch.timeLeft),
