@@ -863,8 +863,17 @@ cs.on('connection', (socket) => {
       const existingIdx = csMatch.players.findIndex(p => p.nickname === nickname);
       if (existingIdx >= 0) {
         const old = csMatch.players[existingIdx];
+        const spawn = csSpawnForTeam(team);
+        const weapon = csGetWeaponForTeam(team);
         old.id = socket.id;
         old.team = team;
+        old.x = spawn.x; old.y = spawn.y; old.z = spawn.z;
+        old.yaw = 0; old.pitch = 0;
+        old.health = 100; old.armor = 0;
+        old.weapon = weapon; old.ammo = WEAPONS_CS[weapon].ammo;
+        old.isAlive = true;
+        old.kills = 0; old.deaths = 0;
+        console.log(`CS player reset on reconnect: ${nickname} team=${team}`);
       } else {
         const spawn = csSpawnForTeam(team);
         const weapon = csGetWeaponForTeam(team);
