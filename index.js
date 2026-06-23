@@ -775,22 +775,26 @@ function csGetWeaponForTeam(team) {
 }
 
 function csTick() {
-  if (csMatch.phase !== 'playing') return;
   const now = Date.now();
   const dt = (now - csMatch.lastTick) / 1000;
   csMatch.lastTick = now;
+  const playersData = csMatch.players.map(p => ({ ...p }));
+  cs.emit('players_update', playersData);
+  if (csMatch.phase !== 'playing') return;
   csMatch.timeLeft -= dt;
   if (csMatch.timeLeft <= 0) { csEndRound(null); return; }
   const ctAlive = csMatch.players.filter(p => p.team === 'CT' && p.isAlive).length;
   const tAlive = csMatch.players.filter(p => p.team === 'T' && p.isAlive).length;
   if (ctAlive === 0 && csMatch.players.some(p => p.team === 'CT')) csEndRound('T');
   else if (tAlive === 0 && csMatch.players.some(p => p.team === 'T')) csEndRound('CT');
+  const playersData = csMatch.players.map(p => ({ ...p }));
+  cs.emit('players_update', playersData);
   cs.emit('game_state', {
     phase: csMatch.phase,
     timeLeft: Math.ceil(csMatch.timeLeft),
     ctScore: csMatch.ctScore,
     tScore: csMatch.tScore,
-    players: csMatch.players.map(p => ({ ...p })),
+    players: playersData,
     round: csMatch.round,
     maxRounds: csMatch.maxRounds,
   });
@@ -828,6 +832,11 @@ function csResetPlayers() {
 }
 
 function csAutoStart() {
+  if (!csMatch.tickInterval) {
+    csMatch.lastTick = Date.now();
+    csMatch.tickInterval = setInterval(csTick, 1000 / CS_TICK_RATE);
+    console.log('CS tick started');
+  }
   const ctCount = csMatch.players.filter(p => p.team === 'CT').length;
   const tCount = csMatch.players.filter(p => p.team === 'T').length;
   if (csMatch.phase === 'waiting' && ctCount >= 1 && tCount >= 1) {
@@ -837,8 +846,6 @@ function csAutoStart() {
     cs.emit('countdown', { seconds: 3 });
     setTimeout(() => {
       cs.emit('players_update', csMatch.players.map(p => ({ ...p })));
-      if (csMatch.tickInterval) clearInterval(csMatch.tickInterval);
-      csMatch.tickInterval = setInterval(csTick, 1000 / CS_TICK_RATE);
     }, 3000);
     console.log('CS match auto-started');
   }
@@ -905,6 +912,10 @@ cs.on('connection', (socket) => {
         if (victim && victim.isAlive && victim.team !== shooter.team) {
           const dmg = data.weapon === 'knife' ? weaponDef.damage : weaponDef.damage;
           victim.health -= dmg;
+          const hitX = victim.x;
+          const hitY = victim.y + 1.2;
+          const hitZ = victim.z;
+          socket.emit('hit_effect', { x: hitX, y: hitY, z: hitZ, headshot: false, damage: dmg });
           if (victim.health <= 0) {
             victim.health = 0; victim.isAlive = false; victim.deaths++; shooter.kills++;
             const killEvent = { killer: shooter.nickname, victim: victim.nickname, weapon: data.weapon, headshot: false };
